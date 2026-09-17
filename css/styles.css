@@ -595,6 +595,20 @@ input[type="range"]:focus {
   margin-top: .25rem;
 }
 
+.menu-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .45rem;
+}
+
+.menu-item-actions .button,
+.menu-item-actions .add-to-cart {
+  min-height: 2.35rem;
+  padding: .5rem .7rem;
+  font-size: .85rem;
+}
+
 .price {
   font-size: 1.15rem;
   font-weight: 900;
@@ -618,6 +632,11 @@ input[type="range"]:focus {
 
 .add-to-cart:active {
   transform: scale(.96);
+}
+
+.add-to-cart:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .order-layout {

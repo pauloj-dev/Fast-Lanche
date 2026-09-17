@@ -537,7 +537,9 @@ const menuItems = [
     }
 ];
 
-const menuContainer = document.getElementById('menu-items');
+const menuContainer = typeof document !== 'undefined'
+    ? document.getElementById('menu-items')
+    : null;
 
 let visibleItems = menuItems.filter(item => item.active);
 let activeFilter = 'all';
@@ -622,6 +624,8 @@ function createMenuVisual(item) {
 function createMenuCard(item) {
     const card = document.createElement('article');
     card.className = 'menu-item';
+    card.dataset.category = item.category;
+    card.dataset.productId = String(item.id);
 
     const visual = createMenuVisual(item);
     const category = createTextElement('p', 'section-kicker', item.category);
@@ -633,13 +637,19 @@ function createMenuCard(item) {
 
     const price = createTextElement('span', 'price', formatCurrency(item.price));
 
+    const actions = document.createElement('div');
+    actions.className = 'menu-item-actions';
+
     const button = document.createElement('button');
     button.className = 'add-to-cart';
     button.type = 'button';
     button.dataset.id = String(item.id);
-    button.textContent = 'Adicionar';
+    button.textContent = 'Adicionar ao carrinho';
+    button.setAttribute('aria-label', `Adicionar ${item.name} ao carrinho`);
 
-    footer.append(price, button);
+    actions.appendChild(button);
+
+    footer.append(price, actions);
     card.append(visual, category, title, description, footer);
 
     // Verificar se o produto está sem estoque e aplicar overlay
@@ -737,6 +747,7 @@ function setupRestaurantStatusListener() {
 
 export {
     activeFilter,
+    getFilteredMenuItems,
     menuItems,
     renderMenu,
     searchTerm,

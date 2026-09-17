@@ -66,7 +66,7 @@ async function initHome() {
     updateVisibleItems();
 
     // Setup de interações demo (adicionar ao carrinho)
-    setupDemoInteractions();
+    setupMenuInteractions();
 
     // Fase 32 - Página Home: produto em destaque e hero dinâmico
     import('./home.js').then(({ setupHome }) => setupHome()).catch(err => {
@@ -74,14 +74,14 @@ async function initHome() {
     });
 }
 
-function setupDemoInteractions() {
+function setupMenuInteractions() {
     document.body.addEventListener('click', event => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
 
-        const addBtn = target.closest('.add-to-cart');
-        if (addBtn) {
-            const itemId = Number(addBtn.dataset.id);
+        const actionButton = target.closest('.add-to-cart');
+        if (actionButton && !actionButton.disabled) {
+            const itemId = Number(actionButton.dataset.id);
             import('./menu-store.js').then(({ menuItems }) => {
                 const selectedItem = menuItems.find(item => item.id === itemId);
                 if (selectedItem) {
@@ -150,7 +150,7 @@ async function initCardapio() {
     }
 
     // Setup de interações demo
-    setupDemoInteractions();
+    setupMenuInteractions();
 }
 
 // =========================================================================

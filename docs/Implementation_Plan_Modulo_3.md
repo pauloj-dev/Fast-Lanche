@@ -806,7 +806,7 @@ Exibir:
 
 ---
 
-# FASE 33 — PÁGINA DE CARDÁPIO
+# FASE 33 — PÁGINA DE CARDÁPIO ✅
 
 ## Objetivo
 

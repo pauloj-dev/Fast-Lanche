@@ -181,6 +181,7 @@ function addUnavailableOverlay(card) {
         addBtn.textContent = 'Indisponível';
         addBtn.classList.add('button-disabled');
     }
+
 }
 
 // =========================================================================
