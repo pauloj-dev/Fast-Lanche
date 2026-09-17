@@ -159,7 +159,7 @@ async function initCardapio() {
 async function initCarrinho() {
     setupCommon();
 
-    const [{ loadCart, setupCartControls, renderCart, clearCart },
+    const [{ loadCart, setupCartControls, renderCart, clearCart, cart },
         { setupUserProfile },
         { setupUserNavigation },
         { setupAdminClaim },
@@ -228,6 +228,24 @@ async function initCarrinho() {
                 });
             });
         });
+    }
+
+    const checkoutLink = document.querySelector('a[href="checkout.html"]');
+    if (checkoutLink) {
+        const syncCheckoutAvailability = () => {
+            const hasItems = cart.items.length > 0;
+            checkoutLink.toggleAttribute('aria-disabled', !hasItems);
+            checkoutLink.classList.toggle('is-disabled', !hasItems);
+            checkoutLink.tabIndex = hasItems ? 0 : -1;
+        };
+        checkoutLink.addEventListener('click', event => {
+            if (!cart.items.length) {
+                event.preventDefault();
+                import('./ui.js').then(({ showToast }) => showToast('Adicione um item antes de finalizar o pedido.', 'info'));
+            }
+        });
+        document.addEventListener('cart:update', syncCheckoutAvailability);
+        syncCheckoutAvailability();
     }
 }
 // =========================================================================

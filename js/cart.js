@@ -2,15 +2,25 @@
 import { isOutOfStock, getAvailableQuantity } from './inventory.js';
 import { createEnhancedCartEmptyState, createFreeDeliveryBar } from './ux.js';
 
-const cartItemsContainer = document.getElementById('cart-items');
-const cartCount = document.getElementById('cart-count');
-const cartSubtotal = document.getElementById('cart-subtotal');
-const cartFee = document.getElementById('cart-fee');
-const cartTotal = document.getElementById('cart-total');
+// O módulo também é consumido por testes e ferramentas sem DOM.
+const dom = typeof document !== 'undefined' ? document : null;
+const cartItemsContainer = dom?.getElementById('cart-items') || null;
+const cartCount = dom?.getElementById('cart-count') || null;
+const cartSubtotal = dom?.getElementById('cart-subtotal') || null;
+const cartFee = dom?.getElementById('cart-fee') || null;
+const cartTotal = dom?.getElementById('cart-total') || null;
 
 const DELIVERY_FEE = 6;
 const FREE_DELIVERY_MINIMUM = 50;
 const CART_STORAGE_KEY = 'fastlanche_cart';
+const CATEGORY_IMAGES = {
+  'Hambúrgueres': 'assets/products/hamburguer.svg',
+  'Pizzas': 'assets/products/pizza.svg',
+  'Combos': 'assets/products/combo.svg',
+  'Bebidas': 'assets/products/bebida.svg',
+  'Sobremesas': 'assets/products/sobremesa.svg',
+  'Porções': 'assets/products/porcao.svg'
+};
 
 const cart = {
   items: [],
@@ -31,7 +41,7 @@ function normalizeQuantity(quantity, maxQuantity) {
 
 function calculateCartTotals() {
   cart.subtotal = cart.items.reduce((sum, item) => (
-    sum + item.price * item.quantity
+    sum + Math.max(Number(item.price) || 0, 0) * Math.max(Number(item.quantity) || 0, 0)
   ), 0);
 
   cart.deliveryFee = cart.subtotal > 0 && cart.subtotal < FREE_DELIVERY_MINIMUM
@@ -66,6 +76,8 @@ function getSerializableCart() {
       unitPrice: item.unitPrice || item.price,
       quantity: item.quantity,
       maxQuantity: item.maxQuantity,
+      category: item.category || null,
+      image: item.image || (CATEGORY_IMAGES[item.category] || null),
       _customization: item._customization || null
     })),
     subtotal: cart.subtotal,
@@ -107,6 +119,8 @@ function normalizeStoredItem(item) {
     unitPrice: Math.max(Number(item.unitPrice) || Number(item.price) || 0, 0),
     quantity: normalizeQuantity(Number(item.quantity), maxQuantity),
     maxQuantity,
+    category: typeof item.category === 'string' ? item.category : null,
+    image: typeof item.image === 'string' ? item.image : (CATEGORY_IMAGES[item.category] || null),
     _customization: item._customization || null
   };
 }
@@ -170,10 +184,12 @@ function addToCart(item) {
       cartItemId,
       id: Number(item.id),
       name: item.name,
-      price: Number(item.price) || 0,
-      unitPrice: Number(item.unitPrice) || Number(item.price) || 0,
+      price: Math.max(Number(item.price) || 0, 0),
+      unitPrice: Math.max(Number(item.unitPrice) || Number(item.price) || 0, 0),
       quantity: 1,
       maxQuantity: item.maxQuantity || 99,
+      category: item.category || null,
+      image: typeof item.image === 'string' ? item.image : (CATEGORY_IMAGES[item.category] || null),
       _customization: itemCust
     });
   }
@@ -314,6 +330,15 @@ function createCartItemElement(item) {
   priceRow.append(unitPrice, totalPrice);
   info.append(name, priceRow);
 
+  if (item.image) {
+    const image = document.createElement('img');
+    image.className = 'cart-item-image';
+    image.src = item.image;
+    image.alt = item.name;
+    image.loading = 'lazy';
+    listItem.prepend(image);
+  }
+
   // Resumo da personalizacao
   const customizationSummary = createCustomizationSummary(item);
   if (customizationSummary) {
@@ -390,7 +415,8 @@ function renderCart() {
 }
 
 function renderFreeDeliveryBar() {
-  const cartPanel = document.querySelector('.cart-panel');
+  if (!dom) return;
+  const cartPanel = dom.querySelector('.cart-panel, .cart-page-summary');
   if (!cartPanel) return;
 
   // Remover barra existente
@@ -398,11 +424,11 @@ function renderFreeDeliveryBar() {
   if (existingBar) existingBar.remove();
 
   // Remover botão de ir para checkout se existir
-  const existingBtn = document.getElementById('go-to-checkout-btn');
+  const existingBtn = dom.getElementById('go-to-checkout-btn');
   if (existingBtn) existingBtn.remove();
 
   // Adicionar barra de frete grátis após o cart-summary
-  const cartSummary = document.querySelector('.cart-summary');
+  const cartSummary = dom.querySelector('.cart-summary');
   if (cartSummary && cart.items.length) {
     const freeDeliveryBar = createFreeDeliveryBar(cart.subtotal);
     cartSummary.after(freeDeliveryBar);
@@ -410,7 +436,8 @@ function renderFreeDeliveryBar() {
 }
 
 function dispatchCartUpdate() {
-  document.dispatchEvent(new CustomEvent('cart:update', {
+  if (!dom) return;
+  dom.dispatchEvent(new CustomEvent('cart:update', {
     detail: { items: cart.items.length, subtotal: cart.subtotal }
   }));
 }
@@ -443,5 +470,8 @@ export {
   removeItem,
   renderCart,
   saveCart,
-  setupCartControls
+  setupCartControls,
+  normalizeQuantity,
+  DELIVERY_FEE,
+  FREE_DELIVERY_MINIMUM
 };
