@@ -112,8 +112,8 @@ assert(typeof sec.safeRemoveItem === 'function', 'safeRemoveItem existe');
 // Test escapeHtml
 console.log('\n--- escapeHtml ---');
 const escaped = sec.escapeHtml('<script>alert("x")</script>');
-assert(escaped.includes('<') && escaped.includes('>'), 'Escapa tags HTML');
-assert(escaped.includes('"'), 'Escapa aspas');
+assert(escaped.includes('&lt;script&gt;') && escaped.includes('&lt;/script&gt;'), 'Escapa tags HTML');
+assert(escaped.includes('&quot;x&quot;'), 'Escapa aspas');
 
 console.log('\n=== RESULTADO: ' + passed + ' passaram, ' + failed + ' falharam ===');
 process.exit(failed > 0 ? 1 : 0);

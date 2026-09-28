@@ -2,6 +2,7 @@
 import { CUSTOMIZATION_TYPES } from './constants.js';
 import { formatCurrency } from './ui.js';
 import { addUnavailableOverlay } from './ux.js';
+import { resolveAssetPath } from './base-path.js';
 
 // Mapeamento de categorias para imagens SVG animadas
 const CATEGORY_IMAGES = {
@@ -613,7 +614,7 @@ function createMenuVisual(item) {
 
     const img = document.createElement('img');
     img.className = 'menu-item-img';
-    img.src = CATEGORY_IMAGES[item.category] || 'assets/products/hamburguer.svg';
+    img.src = resolveAssetPath(CATEGORY_IMAGES[item.category] || 'assets/products/hamburguer.svg');
     img.alt = `${item.category} - Fast Lanche`;
     img.loading = 'lazy';
 

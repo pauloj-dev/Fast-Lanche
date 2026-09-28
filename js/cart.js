@@ -1,6 +1,7 @@
 // cart.js - logica do carrinho
 import { isOutOfStock, getAvailableQuantity } from './inventory.js';
 import { createEnhancedCartEmptyState, createFreeDeliveryBar } from './ux.js';
+import { resolveAssetPath } from './base-path.js';
 
 // O módulo também é consumido por testes e ferramentas sem DOM.
 const dom = typeof document !== 'undefined' ? document : null;
@@ -333,7 +334,7 @@ function createCartItemElement(item) {
   if (item.image) {
     const image = document.createElement('img');
     image.className = 'cart-item-image';
-    image.src = item.image;
+    image.src = resolveAssetPath(item.image);
     image.alt = item.name;
     image.loading = 'lazy';
     listItem.prepend(image);

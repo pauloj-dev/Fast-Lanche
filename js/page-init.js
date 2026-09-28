@@ -3,6 +3,7 @@
 import { setupLayout } from './layout.js';
 import { setupAppState } from './app-state.js';
 import { setupUX } from './ux.js';
+import { resolvePagePath } from './base-path.js';
 
 // =========================================================================
 // UTILITÁRIOS
@@ -489,7 +490,7 @@ function setupLoginForm() {
                 });
 
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = resolvePagePath('index.html');
                 }, 800);
             } catch (error) {
                 setFeedback(loginFeedback, 'Erro ao salvar sessão. Tente novamente.', 'error');
@@ -594,7 +595,7 @@ function setupLoginForm() {
                 });
 
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = resolvePagePath('index.html');
                 }, 800);
             } catch (error) {
                 setFeedback(signupFeedback, 'Erro ao salvar cadastro. Tente novamente.', 'error');
@@ -641,7 +642,7 @@ async function initPerfil() {
     // Verificar se usuário está logado
     const { isUserLoggedIn } = await import('./layout.js');
     if (!isUserLoggedIn()) {
-        window.location.href = 'login.html';
+        window.location.href = resolvePagePath('login.html');
         return;
     }
 

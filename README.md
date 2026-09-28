@@ -109,7 +109,15 @@ O **Fast Lanche** é um sistema de delivery construído apenas com **HTML, CSS e
 
 ```text
 Fast-Lanche/
-├── index.html                 # Estrutura e seções da aplicação
+├── index.html                 # Página Home (raiz do projeto)
+├── pages-html/                # Demais páginas da aplicação
+│   ├── cardapio.html          # Cardápio completo
+│   ├── carrinho.html          # Carrinho de compras
+│   ├── checkout.html          # Checkout e pagamento simulado
+│   ├── reservas.html          # Agendamento de mesas
+│   ├── feedbacks.html         # Avaliações dos clientes
+│   ├── login.html             # Login e cadastro
+│   └── perfil.html            # Perfil do usuário
 ├── css/
 │   └── styles.css             # Layout, componentes, responsividade e identidade visual
 ├── js/                        # Módulos ES6 (separação de responsabilidades)
@@ -132,7 +140,8 @@ Fast-Lanche/
 │   ├── ux.js                  # Estados visuais e UX
 │   ├── ui.js                  # Helpers de UI (toasts, modais)
 │   ├── security.js            # Seguridad: sanitización y validación (Fase 29)
-│   └── constants.js           # Constantes compartilhadas
+│   ├── constants.js           # Constantes compartilhadas
+│   └── base-path.js           # Caminhos relativos (raiz x pages-html)
 └── assets/
     ├── icons/                 # Ícones da interface (SVG)
     ├── logo/                  # Logotipo (SVG)
@@ -176,7 +185,7 @@ Todas as operações utilizam `try/catch`; se o `localStorage` estiver indispon�
 
 ## Como Executar
 
-O projeto não possui dependências nem build. Basta abrir o arquivo `index.html` em um navegador moderno.
+A aplicação principal (HTML, CSS e JS puro) não possui dependências nem build: basta servir a pasta raiz em um servidor estático e abrir a `index.html`.
 
 **Local (recomendado com servidor estático):**
 
@@ -188,7 +197,9 @@ python -m http.server 8000
 npx serve .
 ```
 
-Depois acesse `http://localhost:8000` no navegador.
+Depois acesse `http://localhost:8000` (Home). As demais páginas ficam em `pages-html/`, por exemplo `http://localhost:8000/pages-html/cardapio.html`.
+
+> A pasta `react/` contém shells que dependem do Vite (`npm run dev` / `npm run build`) durante a migração para React. O build gera todas as páginas (legadas e shells) em `dist/`, incluindo `dist/pages-html/`.
 
 > **Observação:** como o projeto usa módulos ES6 (`import`/`export`), recomendamos servir via HTTP local em vez de abrir o arquivo diretamente (`file://`), para garantir o carregamento correto dos módulos.
 

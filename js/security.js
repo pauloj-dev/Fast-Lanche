@@ -26,6 +26,7 @@ function escapeHtml(value) {
  */
 function sanitizeText(value, maxLength = 500) {
     let text = String(value || '')
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
         .replace(/<[^>]*>/g, '')          // Elimina tags HTML
         .replace(/[\u0000-\u001F\u007F]/g, '') // Elimina caracteres de control
         .replace(/\s+/g, ' ')              // Normaliza espacios
@@ -43,8 +44,8 @@ function sanitizeText(value, maxLength = 500) {
  */
 function sanitizeName(value, maxLength = 80) {
     let name = sanitizeText(value, maxLength);
-    // Permite letras (incluyendo acentos), números, espacios, guiones y apóstrofes
-    name = name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s\-']/g, '');
+    // Permite letras Unicode, números, espaços, hífens e apóstrofos.
+    name = name.replace(/[^\p{L}0-9\s\-']/gu, '');
     return name.trim();
 }
 
@@ -89,8 +90,8 @@ function sanitizeDocument(value, maxLength = 18) {
  */
 function sanitizeComment(value, maxLength = 1000) {
     let comment = sanitizeText(value, maxLength);
-    // Permite letras, números, puntuación básica y emojis
-    comment = comment.replace(/[^\p{L}\p{N}\s.,!?;:'"()\-_@#€$%&*+=/\\[\]{}|~^`<>]/gu, '');
+    // Preserva emojis, incluindo variation selectors e conectores de sequencias.
+    comment = comment.replace(/[^\p{L}\p{N}\p{Extended_Pictographic}\uFE0F\u200D\s.,!?;:'"()\-_@#€$%&*+=/\\[\]{}|~^`<>]/gu, '');
     return comment.trim();
 }
 

@@ -1,6 +1,7 @@
 // layout.js - Header e Footer globais compartilhados entre todas as páginas
 // Fase 31 - Arquitetura Multi-Páginas
 import { showToast } from './ui.js';
+import { resolvePagePath } from './base-path.js';
 
 // =========================================================================
 // CONSTANTES
@@ -102,7 +103,7 @@ function createHeader() {
 
     const brand = document.createElement('a');
     brand.className = 'brand';
-    brand.href = 'index.html';
+    brand.href = resolvePagePath('index.html');
     brand.setAttribute('aria-label', 'Fast Lanche - inicio');
     brand.textContent = 'Fast Lanche';
 
@@ -138,7 +139,7 @@ function createHeader() {
 
     navLinks.forEach(link => {
         const a = document.createElement('a');
-        a.href = link.href;
+        a.href = resolvePagePath(link.href);
         a.textContent = link.label;
         if (link.page === currentPage) {
             a.classList.add('active');
@@ -158,7 +159,7 @@ function createHeader() {
 
     const cartLink = document.createElement('a');
     cartLink.className = 'cart-header-link';
-    cartLink.href = 'carrinho.html';
+    cartLink.href = resolvePagePath('carrinho.html');
     cartLink.setAttribute('aria-label', 'Ver carrinho');
     cartLink.setAttribute('title', 'Carrinho');
 
@@ -220,7 +221,7 @@ function createFooter() {
 
     links.forEach(link => {
         const a = document.createElement('a');
-        a.href = link.href;
+        a.href = resolvePagePath(link.href);
         a.textContent = link.label;
         navLinks.appendChild(a);
     });
@@ -297,7 +298,7 @@ function updateLoginButton() {
 
     const loginBtn = document.createElement('a');
     loginBtn.className = 'nav-link-btn login-header-btn';
-    loginBtn.href = 'login.html';
+    loginBtn.href = resolvePagePath('login.html');
     loginBtn.textContent = 'Entrar';
     loginBtn.setAttribute('aria-label', 'Fazer login');
     container.appendChild(loginBtn);
@@ -363,7 +364,7 @@ function createProfileDropdown(anchor) {
     // Meu Perfil
     const profileItem = createDropdownItem('Meu Perfil', '👤', () => {
         closeDropdown();
-        window.location.href = 'perfil.html';
+        window.location.href = resolvePagePath('perfil.html');
     });
     list.appendChild(profileItem);
 

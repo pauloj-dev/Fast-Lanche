@@ -1,6 +1,7 @@
 // home.js - Modulo da Pagina Inicio (Fase 32 - Pagina Home)
 // Apresentacao breve do restaurante, produto em destaque e redirecionamentos.
 import { formatCurrency } from './ui.js';
+import { resolveAssetPath, resolvePagePath } from './base-path.js';
 
 // =========================================================================
 // CONSTANTES
@@ -76,7 +77,7 @@ function createHeroFeatureContent(product, openCustomizationModal) {
 
     const img = document.createElement('img');
     img.className = 'hero-feature-img';
-    img.src = getCategoryImage(product.category);
+    img.src = resolveAssetPath(getCategoryImage(product.category));
     img.alt = `${product.name} - Fast Lanche`;
     img.loading = 'lazy';
     visual.appendChild(img);
@@ -115,7 +116,7 @@ function createHeroFeatureContent(product, openCustomizationModal) {
 
     const detailLink = document.createElement('a');
     detailLink.className = 'button button-secondary featured-detail-link';
-    detailLink.href = 'cardapio.html';
+    detailLink.href = resolvePagePath('cardapio.html');
     detailLink.textContent = 'Ver detalhes';
 
     actions.append(addBtn, detailLink);
