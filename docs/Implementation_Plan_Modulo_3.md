@@ -1,2097 +1,402 @@
-# IMPLEMENTATION PLAN 3 — FAST LANCHE
+# IMPLEMENTATION PLAN 3 - FAST LANCHE
 
-## MÓDULO DE OTIMIZAÇÃO, MULTI-PÁGINAS E PREPARAÇÃO PARA BACKEND
+## Backlog restante após a migração inicial para React
 
-### Continuação do Implementation Plan 2 — Fase 30 em diante
+Este documento continua o Implementation Plan 2 a partir das fases 30 em diante. O plano foi ajustado ao estado atual do projeto em React e separa explicitamente o que já foi entregue do que ainda precisa ser produzido.
 
----
-
-# 1. VISÃO GERAL DO PROJETO
-
-## Objetivo do Produto
-
-O Fast Lanche é uma plataforma web de delivery nativa para restaurante desenvolvida em HTML, CSS e JavaScript ES6+, seguindo uma arquitetura modular e separação de responsabilidades.
-
-Este terceiro módulo tem como objetivo transformar a aplicação de uma estrutura de página única (SPA) para uma **arquitetura multi-páginas**, além de:
-
-- Otimizar e refinar todos os fluxos existentes.
-- Separar cada domínio funcional em páginas dedicadas.
-- Implementar sistema de login/sign in estático.
-- Evoluir o sistema de reservas com pagamento adiantado e controle de disponibilidade de mesas.
-- Evoluir o sistema de feedbacks com seleção de produtos e pesquisa/filtro.
-- Reforçar a segurança da aplicação.
-- Reorganizar a responsividade para a nova arquitetura.
-- Realizar testes completos das novas implementações.
-- Preparar a base para um backend real.
-
-O foco desta etapa é transformar a aplicação em um produto multi-páginas profissional, escalável e preparado para integração com servidor.
+> Escopo deste documento: executar somente as fases pendentes ou parciais. As fases concluídas ficam registradas como referência e não devem ser reabertas sem uma nova decisão de produto.
 
 ---
 
-## Público-Alvo
+# 1. ESTADO ATUAL
 
-### Clientes
+## Fases concluídas
 
-Usuários que desejam:
+As fases 30 a 34 estão concluídas conforme o plano anterior:
 
-- Navegar por páginas dedicadas e organizadas.
-- Visualizar produtos com clareza.
-- Personalizar refeições.
-- Reservar mesas com pagamento antecipado.
-- Avaliar produtos específicos que compraram.
-- Acompanhar pedidos.
-- Criar conta e fazer login.
+- análise da aplicação e definição dos domínios;
+- arquitetura multi-páginas;
+- Home;
+- Cardápio;
+- carrinho persistente com página dedicada.
 
-Características:
+A migração inicial para React também entregou a base das páginas de Home, Cardápio, Carrinho, Checkout, Reservas e Feedbacks. Essa base não significa que todas as fases correspondentes estejam completas: Checkout, Reservas e Feedbacks ainda têm itens do escopo original pendentes.
 
-- Usuários mobile.
-- Usuários desktop.
-- Pessoas com baixa ou média familiaridade tecnológica.
+## Backlog por fase
 
----
-
-### Proprietários
-
-Usuários responsáveis pelo restaurante.
-
-Necessidades:
-
-- Controlar cardápio.
-- Gerenciar produtos.
-- Atualizar disponibilidade.
-- Acompanhar pedidos.
-- Controlar operação.
-- Gerenciar reservas e pagamentos antecipados.
+| Fase | Tema | Estado | Próximo resultado esperado |
+| --- | --- | --- | --- |
+| 35 | Checkout | Parcial | Comprovante React, fluxo de conclusão e modelo de pedido completo |
+| 36 | Login / Sign In | Pendente | Autenticação estática integrada ao shell React |
+| 37 | Perfil avançado | Pendente | Perfil React protegido, preferências e histórico |
+| 38 | Reservas avançadas | Parcial | Disponibilidade, pagamento simulado e confirmação |
+| 39 | Feedbacks avançados | Parcial | Feedback vinculado a produtos com busca e filtros |
+| 40 | Segurança | Parcial | Validação e sanitização compartilhadas nos fluxos React |
+| 41 | Otimização e refinamento | Parcial | Serviços, estados de UI e convenções React consistentes |
+| 42 | Responsividade | Pendente | Validação visual da aplicação React em todos os breakpoints |
+| 43 | Testes | Parcial | Cobertura dos contratos React e dos fluxos críticos |
+| 44 | Preparação para backend | Parcial | Contratos de domínio substituíveis por API |
+| 45 | Produção final | Pendente | Build, documentação e checklist de publicação aprovados |
 
 ---
 
-## Proposta de Valor
+# 2. ARQUITETURA DE REFERÊNCIA
 
-### Para o Cliente
+## Entrypoints e páginas
 
-O Fast Lanche oferece:
+O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTML independente com `<div id="root"></div>` e `src/main.jsx`. O `src/App.jsx` escolhe a página usando o nome do arquivo na URL; não há roteador SPA.
 
-- Navegação clara entre páginas dedicadas.
-- Experiência de compra simplificada.
-- Carrinho acessível por ícone no header.
-- Reservas com pagamento antecipado e disponibilidade em tempo real.
-- Feedbacks direcionados a produtos específicos.
-- Conta pessoal com login estático.
-- Segurança reforçada nos dados.
-
----
-
-### Para o Restaurante
-
-O sistema oferece:
-
-- Controle do catálogo.
-- Organização dos pedidos.
-- Gestão de reservas com pagamento.
-- Base administrativa.
-- Preparação para backend real.
-
----
-
-## Escopo do MVP Evoluído (Módulo 3)
-
-Inclui:
-
-- Arquitetura multi-páginas.
-- Página Home com apresentação e produto destaque.
-- Página de Cardápio dedicada.
-- Página de Carrinho dedicada.
-- Página de Checkout dedicada.
-- Sistema de login/sign in estático.
-- Perfil de usuário integrado ao login.
-- Reservas com pagamento adiantado e controle de mesas.
-- Feedbacks com seleção de produtos e pesquisa/filtro.
-- Segurança reforçada.
-- Otimização e refinamento geral.
-- Responsividade reorganizada.
-- Testes das novas implementações.
-- Preparação para backend.
-
----
-
-## Escopo Futuro
-
-Possíveis evoluções:
-
-- Backend completo com API.
-- Banco de dados.
-- Autenticação real.
-- Pagamentos reais.
-- Aplicativo mobile.
-- Integração com entregadores.
-- Notificações em tempo real.
-- Painel administrativo avançado.
-
----
-
-# 2. ARQUITETURA GERAL
-
-## Estrutura de Diretórios
-
-A aplicação evolui de uma estrutura de página única para uma estrutura multi-páginas, mantendo a separação de responsabilidades por domínio funcional.
-
-```
+```text
 /
-├── index.html                      (Página Home)
-├── cardapio.html                   (Página de Cardápio)
-├── carrinho.html                   (Página do Carrinho)
-├── checkout.html                   (Página de Checkout)
-├── login.html                      (Página de Login / Sign In)
-├── perfil.html                     (Página de Perfil do Usuário)
-├── reservas.html                   (Página de Reservas de Mesas)
-├── feedbacks.html                  (Página de Feedbacks)
-├── css/
-│   └── styles.css                  (Estilos globais e responsividade)
-├── js/
-│   ├── app.js                      (Inicialização e navegação global)
-│   ├── app-state.js                (Estado global compartilhado)
-│   ├── constants.js                (Constantes e configurações)
-│   ├── ui.js                       (Componentes de interface reutilizáveis)
-│   ├── menu-store.js               (Dados e regras do cardápio)
-│   ├── cart.js                     (Lógica do carrinho)
-│   ├── checkout.js                 (Finalização e pagamento)
-│   ├── booking.js                  (Reservas de mesas)
-│   ├── feedback.js                 (Avaliações e comentários)
-│   ├── user-profile.js             (Perfil do usuário)
-│   ├── user-navigation.js          (Navegação do usuário logado)
-│   ├── admin-claim.js              (Solicitação de admin)
-│   ├── admin.js                    (Painel administrativo)
-│   ├── inventory.js                (Controle de estoque)
-│   ├── order-tracking.js           (Acompanhamento de pedidos)
-│   ├── order-queue.js              (Fila de pedidos)
-│   ├── product-customization.js    (Personalização de produtos)
-│   ├── receipt.js                  (Comprovante digital)
-│   ├── security.js                 (Segurança e sanitização)
-│   └── ux.js                       (Melhorias de experiência)
-├── assets/
-│   ├── products/                   (Imagens dos produtos)
-│   ├── logo/                       (Logotipo)
-│   └── icons/                      (Ícones da interface)
-└── tests/
-    └── test-security.mjs           (Testes de segurança)
+├── react/                         # shells React executados pelo Vite
+│   ├── index.html                 # Home
+│   ├── cardapio.html              # Cardápio
+│   ├── carrinho.html              # Carrinho
+│   ├── checkout.html              # Checkout
+│   ├── reservas.html              # Reservas
+│   └── feedbacks.html             # Feedbacks
+├── src/
+│   ├── main.jsx                   # entrypoint React
+│   ├── App.jsx                    # seleção da página e composição global
+│   ├── components/
+│   │   ├── Header.jsx             # header, navegação, conta e carrinho
+│   │   ├── ProductCard.jsx        # produto do cardápio
+│   │   └── ModalHost.jsx          # modal global
+│   ├── context/
+│   │   ├── CartContext.jsx        # estado compartilhado do carrinho
+│   │   └── ModalContext.jsx       # estado compartilhado de modais
+│   ├── pages/                     # telas e eventos de formulário
+│   ├── services/                  # contratos de domínio
+│   │   ├── api/apiClient.js       # cliente para futura API
+│   │   └── storage/               # adapters de persistência local
+│   └── utils/businessRules.js     # cálculos e validações puras
+├── pages-html/                   # páginas legadas ainda não migradas
+├── css/styles.css                 # estilos compartilhados
+├── assets/                        # logo, ícones e produtos
+├── tests/                         # testes Node existentes
+└── vite.config.js                 # entradas do build legado + React
 ```
 
----
+## Regras de implementação
 
-## Responsabilidades de Cada Arquivo
+- A interface nova deve ser criada em `src/` e exposta por um shell em `react/`.
+- Componentes não devem acessar `localStorage` diretamente quando existir um service ou adapter para o domínio.
+- Cálculos e validações sem efeitos colaterais ficam em `src/utils/` para serem testáveis.
+- Persistência local é um adapter temporário; a interface usada pelas páginas deve permanecer compatível com uma API futura.
+- O CSS existente em `css/styles.css` continua sendo a fonte visual compartilhada entre páginas legadas e React.
+- Links entre páginas React devem apontar para os shells em `react/` quando o fluxo estiver migrado. Links para páginas ainda legadas devem permanecer explícitos até a migração da respectiva fase.
+- Dados vindos de formulários, URL ou `localStorage` são não confiáveis, mesmo em uma aplicação estática.
 
-### index.html (Página Home)
+## Contratos atuais a preservar
 
-#### Responsabilidade
-
-Controlar:
-
-- Apresentação breve do restaurante.
-- Produto em destaque.
-- Redirecionamentos para as demais páginas.
-- Header global com ícone de carrinho e perfil.
-- Footer global.
-
-#### Não deve controlar:
-
-- Regras de negócio.
-- Cálculos.
-- Estados da aplicação.
+- Carrinho: `src/context/CartContext.jsx` e `src/services/cartService.js`.
+- Cardápio: `src/services/menuService.js` e `src/components/ProductCard.jsx`.
+- Pedido: `src/services/orderService.js`.
+- Reserva: `src/services/bookingService.js`.
+- Feedback: `src/services/feedbackService.js`.
+- Sessão: chave `fastlanche_session`, atualmente lida por `src/services/authService.js` e pelo `Header`.
+- API futura: `src/services/api/apiClient.js`.
 
 ---
 
-### cardapio.html (Página de Cardápio)
+# 3. IMPLEMENTAÇÃO PENDENTE
 
-#### Responsabilidade
+## FASE 35 - CHECKOUT E COMPROVANTE (PARCIAL)
 
-Controlar:
+### Já entregue
 
-- Exibição completa do cardápio.
-- Busca e filtros.
-- Personalização de produtos.
-- Adição ao carrinho.
+`src/pages/CheckoutPage.jsx` já exibe o resumo, pré-preenche dados disponíveis do perfil, valida o formulário, simula o pagamento, registra o pedido em `orderService` e limpa o carrinho.
 
-#### Não deve controlar:
+### Trabalho restante
 
-- Cálculo de valores do carrinho.
-- Finalização de pedidos.
+- Criar `src/pages/ReceiptPage.jsx` e o shell `react/receipt.html`.
+- Adicionar o shell ao `vite.config.js` e a página ao mapa de `src/App.jsx`.
+- Após um pedido aprovado, persistir apenas a referência necessária e redirecionar para o comprovante, em vez de depender somente de um modal.
+- Exibir no comprovante número do pedido, data, cliente, itens, personalizações, subtotal, entrega, total, pagamento e status.
+- Definir um contrato único de pedido em `src/services/orderService.js`, incluindo identificador, cliente, itens e status inicial.
+- Completar o endereço de entrega ou documentar o contrato reduzido atual; não misturar campos incompatíveis entre o formulário, a validação e o pedido salvo.
+- Tratar carrinho vazio, falha de persistência e reenvio do formulário com estados de carregamento e erro.
+- Cobrir o fluxo checkout -> pedido -> comprovante com testes.
 
----
+### Critérios de aceite
 
-### carrinho.html (Página do Carrinho)
-
-#### Responsabilidade
-
-Controlar:
-
-- Revisão completa do pedido.
-- Quantidades e personalizações.
-- Subtotal, taxa e total.
-- Redirecionamento para o checkout.
-
-#### Não deve controlar:
-
-- Validação de pagamento.
-- Registro do pedido.
+- O envio inválido não cria pedido.
+- O pagamento simulado aprovado cria exatamente um pedido e limpa o carrinho.
+- O usuário chega a `react/receipt.html` e consegue consultar o comprovante após recarregar a página.
+- O comprovante usa o mesmo modelo de dados persistido pelo service.
 
 ---
 
-### checkout.html (Página de Checkout)
+## FASE 36 - LOGIN E SIGN IN ESTÁTICOS (PENDENTE)
 
-#### Responsabilidade
+### Trabalho restante
 
-Controlar:
+- Criar `src/pages/LoginPage.jsx` com alternância entre login e cadastro.
+- Criar `react/login.html`, registrá-lo no `vite.config.js` e incluí-lo no mapa de `src/App.jsx`.
+- Evoluir `src/services/authService.js` para expor cadastro, login, leitura de sessão e logout.
+- Definir as chaves e os modelos locais (`fastlanche_users` e `fastlanche_session`) sem salvar senha na sessão.
+- Validar e-mail, tamanho de senha, confirmação e duplicidade de e-mail antes de persistir.
+- Atualizar o `Header` para refletir login, logout e links de conta sem duplicar regras de sessão.
+- Preservar compatibilidade com as páginas legadas até o fluxo de Perfil também ser migrado.
 
-- Formulário de entrega.
-- Método de pagamento.
-- Validação e finalização.
-- Registro do pedido.
-- Comprovante.
+### Critérios de aceite
 
-#### Não deve controlar:
+- Cadastro e login válidos persistem uma sessão entre páginas React.
+- Credenciais inválidas, e-mail duplicado e campos incompletos geram mensagens úteis.
+- Logout remove somente a sessão ativa e atualiza o header.
+- Nenhuma senha é exibida no header, no pedido ou no comprovante.
 
-- Adição de itens ao carrinho.
-- Personalização de produtos.
-
----
-
-### login.html (Página de Login / Sign In)
-
-#### Responsabilidade
-
-Controlar:
-
-- Login de usuário existente.
-- Cadastro de novo usuário.
-- Validação de credenciais.
-- Sessão estática.
-
-#### Não deve controlar:
-
-- Regras de negócio de pedidos.
-- Cálculos.
+> A autenticação continua sendo apenas uma simulação local. Não tratar o armazenamento no navegador como autenticação segura de produção.
 
 ---
 
-### perfil.html (Página de Perfil do Usuário)
+## FASE 37 - PERFIL AVANÇADO (PENDENTE)
 
-#### Responsabilidade
+### Trabalho restante
 
-Controlar:
+- Criar `src/pages/ProfilePage.jsx` e `react/perfil.html`.
+- Adicionar proteção de página: usuário sem sessão deve ser direcionado ao shell de Login.
+- Criar um service/adapter de perfil para nome, e-mail, telefone, endereço, avatar e preferências.
+- Permitir upload com `FileReader`, pré-visualização, remoção e limite de tipo/tamanho para avatar.
+- Exibir iniciais quando não houver avatar.
+- Implementar preferências de pagamento e notificações sem acoplar a página ao `localStorage`.
+- Buscar pedidos do usuário em `orderService` e exibir histórico com número, data, status e total.
+- Integrar os dados do perfil ao pré-preenchimento do Checkout e ao `Header`.
 
-- Dados pessoais.
-- Avatar / foto.
-- Preferências.
-- Histórico de pedidos.
-- Solicitação de admin.
+### Critérios de aceite
 
-#### Não deve controlar:
-
-- Fluxo de compra.
-- Reservas.
-
----
-
-### reservas.html (Página de Reservas de Mesas)
-
-#### Responsabilidade
-
-Controlar:
-
-- Disponibilidade de mesas.
-- Seleção de data, horário e pessoas.
-- Pagamento adiantado simulado.
-- Confirmação da reserva.
-
-#### Não deve controlar:
-
-- Pedidos de delivery.
-- Feedbacks.
+- Perfil não abre para usuário deslogado.
+- Alterações persistem e são refletidas no header e no checkout.
+- Avatar inválido é rejeitado sem quebrar a página.
+- O histórico mostra apenas pedidos associados ao usuário atual.
 
 ---
 
-### feedbacks.html (Página de Feedbacks)
+## FASE 38 - RESERVAS AVANÇADAS (PARCIAL)
 
-#### Responsabilidade
+### Já entregue
 
-Controlar:
+`src/pages/BookingPage.jsx` valida data, horário e número de pessoas e persiste uma reserva por `bookingService`.
 
-- Lista de avaliações.
-- Seleção de produtos avaliados.
-- Pesquisa e filtro de comentários.
-- Nota média.
+### Trabalho restante
 
-#### Não deve controlar:
+- Definir em `src/utils/businessRules.js` a capacidade total de mesas, capacidade por mesa, horários e taxa de reserva.
+- Evoluir `bookingService` para consultar reservas persistidas por data e horário e calcular mesas disponíveis.
+- Bloquear horários sem capacidade antes de iniciar o pagamento.
+- Adicionar seleção de forma de pagamento e simulação de aprovação/falha.
+- Só persistir a reserva quando o pagamento for aprovado.
+- Gerar número de reserva estável e exibir confirmação com mesa alocada, pessoas, valor, pagamento e status.
+- Tratar concorrência entre abas por recarga dos dados antes de confirmar.
 
-- Carrinho.
-- Reservas.
+### Critérios de aceite
+
+- Data passada, horário fora do expediente e grupo acima da capacidade são rejeitados.
+- Horários lotados aparecem indisponíveis e não podem ser confirmados.
+- Pagamento recusado não bloqueia mesa nem cria reserva.
+- Reserva aprovada persiste e pode ser consultada após recarregar.
 
 ---
 
-### css/styles.css
+## FASE 39 - FEEDBACKS AVANÇADOS (PARCIAL)
 
-#### Responsabilidade
+### Já entregue
 
-Controlar:
+`src/pages/FeedbackPage.jsx` já permite nota, comentário, média, persistência local e prevenção de repetição idêntica na sessão.
 
-- Layout global.
-- Componentes.
-- Responsividade.
-- Identidade visual.
+### Trabalho restante
 
-Deve utilizar:
+- Expandir o modelo de feedback para incluir `productIds` e nomes dos produtos avaliados.
+- Derivar a lista de produtos elegíveis a partir dos pedidos do usuário com status concluído/entregue.
+- Exigir ao menos um produto selecionado e impedir nova avaliação do mesmo produto no mesmo pedido.
+- Adicionar busca textual, filtro por produto, filtro por nota e ordenação por mais recentes.
+- Atualizar a média geral e a média por produto após cada publicação.
+- Sanitizar e limitar nome, comentário e metadados antes de persistir.
+- Definir o comportamento para usuário não logado (feedback geral ou exigência de login) e aplicá-lo de forma consistente.
 
-- CSS Variables.
-- Grid.
-- Flexbox.
+### Critérios de aceite
 
-#### Paleta obrigatória
+- Um feedback publicado identifica claramente os produtos avaliados.
+- Busca e filtros podem ser combinados e não alteram os dados persistidos.
+- Somente compras elegíveis podem gerar avaliação de produto.
+- A média geral e a média do produto selecionado são determinísticas.
 
-```css
-:root {
-  --amarelo: #FFC700;
-  --vermelho: #E63946;
-  --branco: #FFFFFF;
-  --preto: #161616;
-}
+---
+
+## FASE 40 - SEGURANÇA NOS FLUXOS REACT (PARCIAL)
+
+### Trabalho restante
+
+- Criar utilitários React reutilizáveis para sanitização, limites de tamanho e validação de e-mail, telefone, documento, endereço, data e horário.
+- Reutilizar regras puras em vez de duplicar validações dentro das páginas.
+- Criar helpers de persistência segura para JSON inválido, quota excedida e `localStorage` indisponível.
+- Validar novamente dados do carrinho, perfil, pedidos, reservas e feedbacks ao carregá-los; não confiar no conteúdo salvo no navegador.
+- Garantir que dados do usuário sejam renderizados como texto, sem `dangerouslySetInnerHTML`.
+- Reduzir informações sensíveis nas mensagens, logs e objetos de sessão.
+- Aplicar proteção de acesso no Perfil e em qualquer página futura de administração.
+- Adicionar uma política de erro consistente: mensagem amigável na UI e detalhe técnico somente no log de desenvolvimento.
+
+### Critérios de aceite
+
+- Entrada com HTML/script é armazenada apenas na forma sanitizada e nunca executada.
+- JSON corrompido não derruba a aplicação nem perde o estado padrão válido.
+- Páginas protegidas redirecionam sem revelar dados privados.
+- Testes cobrem entradas malformadas e limites de todos os formulários React.
+
+---
+
+## FASE 41 - OTIMIZAÇÃO E REFINAMENTO (PARCIAL)
+
+### Trabalho restante
+
+- Remover acoplamentos de páginas React aos módulos globais legados quando houver um contrato equivalente em `src/services`.
+- Extrair os dados do cardápio usados por `menuService` para uma fonte de domínio em `src/`, mantendo um adapter de compatibilidade temporário.
+- Padronizar estados `loading`, `error`, `empty` e `success` nos formulários e listas.
+- Evitar leituras repetidas de `localStorage` durante a mesma renderização e sincronizar alterações entre abas com eventos definidos.
+- Consolidar mensagens, formatação monetária, datas e identificadores em utilitários compartilhados.
+- Revisar acessibilidade: foco após erro/modal, labels, teclado, `aria-live` e contraste.
+- Verificar que os links entre shells React e páginas legadas funcionam tanto no dev server quanto em `dist/`.
+
+### Critérios de aceite
+
+- Não existem regras de negócio duplicadas entre páginas e services.
+- Cada operação assíncrona tem feedback visual e recuperação de erro.
+- A navegação funciona em `/react/` e no build estático com caminhos relativos.
+- A auditoria de acessibilidade não encontra formulário sem label ou ação sem estado perceptível.
+
+---
+
+## FASE 42 - RESPONSIVIDADE DA APLICAÇÃO REACT (PENDENTE)
+
+### Trabalho restante
+
+- Validar os shells React em smartphone pequeno, smartphone grande, tablet e desktop.
+- Revisar especificamente header/menu, grids do cardápio, controles do carrinho, resumo do checkout, formulário de reservas, filtros de feedback e os novos Login/Perfil.
+- Garantir que formulários usem uma coluna no mobile e que resumo/ações permaneçam alcançáveis sem rolagem horizontal.
+- Ajustar áreas de toque, foco, mensagens de erro, modais e estados vazios no `css/styles.css`.
+- Testar textos longos, avatar, nomes de produtos, valores e listas sem overflow ou sobreposição.
+- Registrar no plano as larguras e navegadores usados na validação.
+
+### Critérios de aceite
+
+- Nenhuma página React cria overflow horizontal nos breakpoints suportados.
+- Ações principais permanecem visíveis e utilizáveis por toque e teclado.
+- Header, footer, modal e mensagens mantêm hierarquia visual em todas as páginas.
+
+---
+
+## FASE 43 - TESTES DAS NOVAS IMPLEMENTAÇÕES (PARCIAL)
+
+### Já coberto
+
+Os testes em `tests/` cobrem caminhos, regras de negócio, carrinho, Home, Cardápio e segurança legada. `npm test` deve continuar verde.
+
+### Trabalho restante
+
+- Criar testes para `authService`, perfil, pedidos, reservas e feedbacks com armazenamento isolado.
+- Testar os componentes de regra pura: checkout, disponibilidade de mesas, elegibilidade de feedback e normalização de modelos.
+- Cobrir os casos de recarga, JSON inválido, carrinho vazio, pagamento recusado e sessão expirada.
+- Adicionar smoke tests dos shells React após `npm run build` e `npm run preview`.
+- Validar os fluxos críticos: Cardápio -> Carrinho -> Checkout -> Comprovante; Login -> Perfil -> Checkout; Reserva -> Pagamento -> Confirmação; Pedido -> Feedback.
+- Manter testes independentes da ordem de execução e sem depender dos dados reais do navegador do desenvolvedor.
+
+### Critérios de aceite
+
+- `npm test` passa sem alterar dados persistentes do ambiente.
+- Cada fase parcialmente concluída possui ao menos um teste de sucesso e um de falha.
+- O build é validado antes dos testes de fluxo em navegador.
+- Falhas de integração apontam para a página/service responsável.
+
+---
+
+## FASE 44 - PREPARAÇÃO PARA BACKEND (PARCIAL)
+
+### Já entregue
+
+`src/services/api/apiClient.js` já define um ponto inicial de troca para requisições HTTP, e os domínios principais já possuem services separados.
+
+### Trabalho restante
+
+- Definir interfaces de repositório para menu, autenticação, perfil, pedidos, reservas e feedbacks.
+- Separar cada implementação local (`localStorage`/memória) da implementação HTTP, mantendo as páginas dependentes apenas do contrato.
+- Padronizar modelos e campos obrigatórios, identificadores, timestamps e estados de pedido/reserva/pagamento.
+- Definir endpoints, métodos, payloads e respostas esperados em uma seção de documentação técnica.
+- Centralizar autenticação futura por token sem colocar token ou credencial em componentes.
+- Padronizar estados de carregamento, erro, retry e respostas `204` no `apiClient`.
+- Definir uma estratégia de migração de dados locais e comportamento quando `VITE_API_BASE_URL` estiver ausente.
+
+### Critérios de aceite
+
+- É possível trocar o adapter local por um mock HTTP sem alterar as páginas.
+- Os contratos documentam sucesso, validação, autenticação e erro.
+- O modo local continua funcionando quando a variável de API não está configurada.
+- Nenhuma credencial ou token é persistido em logs ou modelos de domínio.
+
+---
+
+## FASE 45 - PREPARAÇÃO PARA PRODUÇÃO FINAL (PENDENTE)
+
+### Trabalho restante
+
+- Executar `npm test`, `npm run build` e `npm run preview` como parte do checklist de release.
+- Confirmar que `dist/` contém os shells React, as páginas legadas ainda necessárias, CSS, assets e caminhos relativos válidos.
+- Definir quais URLs permanecem legadas e quais passam a ser React; remover duplicações somente após a migração correspondente.
+- Revisar metadados, favicon, títulos, `robots`, links e mensagens de fallback dos shells.
+- Fazer revisão final de segurança, responsividade, acessibilidade e persistência.
+- Atualizar `README.md` e `docs/React_Migration.md` quando o fluxo de Login, Perfil e Comprovante for migrado.
+- Documentar variáveis de ambiente, comando de build, comando de preview e limitações da autenticação/pagamento simulados.
+- Criar uma lista de smoke checks para a publicação e registrar o resultado.
+
+### Critérios de aceite
+
+- Build e testes passam em uma checkout limpa com as dependências instaladas.
+- Os fluxos críticos são navegáveis a partir dos URLs publicados.
+- Não há shell React em branco quando executado sem Vite: o fallback ou o build informa corretamente o modo de execução.
+- As limitações de dados locais, autenticação estática e pagamento simulado estão documentadas.
+
+---
+
+# 4. ORDEM DE EXECUÇÃO DO BACKLOG
+
+```text
+FASE 35  Checkout e comprovante
+   ↓
+FASE 36  Login / Sign In
+   ↓
+FASE 37  Perfil avançado
+   ↓
+FASE 38  Reservas avançadas ─┐
+FASE 39  Feedbacks avançados ─┼─ podem avançar em paralelo após os contratos de usuário/pedido
+FASE 40  Segurança ─────────┘
+   ↓
+FASE 41  Otimização e refinamento
+   ↓
+FASE 42  Responsividade
+   ↓
+FASE 43  Testes de integração
+   ↓
+FASE 44  Preparação para backend
+   ↓
+FASE 45  Preparação para produção
 ```
 
----
-
-### js/app.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Inicialização da aplicação.
-- Navegação global.
-- Comunicação entre módulos.
-- Estado geral.
-
----
-
-### js/app-state.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Estado global compartilhado.
-- Sincronização entre páginas.
-- Persistência centralizada.
-
----
-
-### js/constants.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Constantes de configuração.
-- Chaves de localStorage.
-- Limites e regras fixas.
-
----
-
-### js/ui.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Componentes de interface reutilizáveis.
-- Toasts.
-- Modais.
-- Estados vazios.
-
----
-
-### js/menu-store.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Dados do cardápio.
-- Categorias.
-- Disponibilidade.
-- Busca e filtros.
-
----
-
-### js/cart.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Carrinho.
-- Quantidades.
-- Valores.
-- Personalizações.
-- Persistência.
-
----
-
-### js/checkout.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Finalização.
-- Pagamento.
-- Registro do pedido.
-- Comprovante.
-
----
-
-### js/booking.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Reserva de mesas.
-- Disponibilidade.
-- Pagamento adiantado.
-- Datas e horários.
-
----
-
-### js/feedback.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Avaliações.
-- Seleção de produtos.
-- Pesquisa e filtro.
-- Notas.
-
----
-
-### js/user-profile.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Dados do usuário.
-- Avatar.
-- Preferências.
-- Sessão.
-
----
-
-### js/user-navigation.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Navegação do usuário logado.
-- Menu do perfil.
-- Acesso a páginas restritas.
-
----
-
-### js/admin-claim.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Solicitação de admin.
-- Status da solicitação.
-- Dados do restaurante.
-
----
-
-### js/admin.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Painel administrativo.
-- Gerenciamento de produtos.
-- Gerenciamento de pedidos.
-- Gerenciamento de reservas.
-
----
-
-### js/inventory.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Estoque.
-- Disponibilidade.
-- Bloqueio de venda.
-
----
-
-### js/order-tracking.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Acompanhamento de pedidos.
-- Status.
-- Confirmação de entrega.
-
----
-
-### js/order-queue.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Fila de pedidos.
-- Posição do cliente.
-- Atualização dinâmica.
-
----
-
-### js/product-customization.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Personalização de produtos.
-- Sabores.
-- Ingredientes.
-- Adicionais.
-
----
-
-### js/receipt.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Comprovante digital.
-- Registro do pedido.
-- Consulta futura.
-
----
-
-### js/security.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Sanitização de entradas.
-- Validação de dados.
-- Proteção contra XSS.
-- Proteção de dados sensíveis.
-
----
-
-### js/ux.js
-
-#### Responsabilidade
-
-Controlar:
-
-- Melhorias de experiência.
-- Animações.
-- Feedback visual.
-
----
-
-# 3. IMPLEMENTATION PLAN POR FASES
-
----
-
-# FASE 30 — ANÁLISE GERAL DO PROJETO ✅
-
-## Objetivo
-
-Realizar uma análise completa da aplicação existente antes da transformação para arquitetura multi-páginas e das novas implementações.
-
----
-
-## Atividades
-
-Executar:
-
-- Revisão da arquitetura atual (página única).
-- Revisão de todos os módulos existentes.
-- Análise dos estados atuais.
-- Identificação de dependências entre módulos.
-- Mapeamento de cada seção para uma futura página dedicada.
-- Identificação de pontos de otimização.
-- Identificação de falhas de segurança.
-- Planejamento da nova estrutura multi-páginas.
-
----
-
-## Pontos analisados
-
-- Cardápio.
-- Carrinho.
-- Checkout.
-- Reservas.
-- Feedback.
-- Perfil de usuário.
-- Admin claim.
-- Persistência local.
-- Segurança.
-- Responsividade.
-
----
-
-## Critérios de Aceite
-
-- Todas funcionalidades existentes continuam funcionando.
-- Não existem responsabilidades duplicadas.
-- Cada seção possui página dedicada mapeada.
-- Pontos de otimização identificados.
-- Falhas de segurança identificadas.
-- Arquitetura multi-páginas planejada.
-
----
-
-# FASE 31 — ARQUITETURA MULTI-PÁGINAS ✅
-
-## Objetivo
-
-Transformar a aplicação de estrutura de página única para uma arquitetura multi-páginas, onde cada domínio funcional possui sua própria página HTML.
-
----
-
-## Criação das Páginas
-
-Criar as seguintes páginas:
-
-- `index.html` — Página Home.
-- `cardapio.html` — Página de Cardápio.
-- `carrinho.html` — Página do Carrinho.
-- `checkout.html` — Página de Checkout.
-- `login.html` — Página de Login / Sign In.
-- `perfil.html` — Página de Perfil.
-- `reservas.html` — Página de Reservas.
-- `feedbacks.html` — Página de Feedbacks.
-
----
-
-## Header Global Compartilhado
-
-Criar um header comum a todas as páginas contendo:
-
-- Logotipo.
-- Navegação principal (Home, Cardápio, Reservas, Feedbacks).
-- Ícone de carrinho com contador de itens.
-- Ícone de perfil com menu do usuário.
-- Botão de login quando deslogado.
-
----
-
-## Footer Global Compartilhado
-
-Criar um footer comum contendo:
-
-- Informações do restaurante.
-- Links de navegação.
-- Redes sociais (placeholder).
-- Horário de funcionamento.
-
----
-
-## Comunicação entre Páginas
-
-Implementar:
-
-- Estado global compartilhado via `localStorage`.
-- Sincronização do carrinho entre páginas.
-- Sincronização da sessão do usuário.
-- Redirecionamentos entre páginas.
-
----
-
-## Critérios de Aceite
-
-- Todas as páginas são acessíveis por navegação.
-- Header e footer são consistentes em todas as páginas.
-- Carrinho persiste entre páginas.
-- Sessão do usuário persiste entre páginas.
-- Nenhuma funcionalidade é perdida na migração.
-
----
-
-# FASE 32 — PÁGINA HOME ✅
-
-## Objetivo
-
-Criar uma página Home de apresentação breve do restaurante, com produto em destaque e redirecionamentos para as demais páginas.
-
----
-
-## Estrutura da Home
-
-### Hero de Apresentação
-
-Exibir:
-
-- Nome do restaurante.
-- Slogan / mensagem de boas-vindas.
-- Imagem de fundo ou destaque.
-- Botão "Ver Cardápio" redirecionando para `cardapio.html`.
-- Botão "Reservar Mesas" redirecionando para `reservas.html`.
-
----
-
-### Produto em Destaque
-
-Exibir:
-
-- Produto escolhido como destaque.
-- Imagem do produto.
-- Nome.
-- Descrição.
-- Preço.
-- Botão "Adicionar ao Carrinho".
-- Botão "Ver Detalhes" redirecionando para o cardápio.
-
----
-
-### Seções de Redirecionamento
-
-Criar cards de acesso rápido:
-
-- Cardápio → `cardapio.html`.
-- Reservas de Mesas → `reservas.html`.
-- Feedbacks → `feedbacks.html`.
-- Acompanhar Pedido → página de rastreamento.
-
----
-
-### Benefícios / Diferenciais
-
-Exibir:
-
-- Entrega rápida.
-- Pagamento seguro.
-- Reservas antecipadas.
-- Avaliações de clientes.
-
----
-
-## Regras de Negócio
-
-- O produto em destaque deve ser um produto ativo do cardápio.
-- Se o produto destaque estiver indisponível, exibir outro ou ocultar a seção.
-- O contador do carrinho no header deve refletir o estado atual.
-
----
-
-## Critérios de Aceite
-
-- Home apresenta o restaurante de forma breve.
-- Produto em destaque é exibido corretamente.
-- Botões redirecionam para as páginas corretas.
-- Contador do carrinho é atualizado.
-- Home é responsiva.
-
----
-
-# FASE 33 — PÁGINA DE CARDÁPIO ✅
-
-## Objetivo
-
-Criar uma página dedicada exclusivamente ao cardápio, com busca, filtros, personalização e adição ao carrinho.
-
----
-
-## Estrutura da Página
-
-### Cabeçalho do Cardápio
-
-Exibir:
-
-- Título da página.
-- Campo de busca por nome ou descrição.
-- Filtro por categoria.
-
----
-
-### Lista de Produtos
-
-Exibir:
-
-- Imagem do produto.
-- Nome.
-- Descrição.
-- Preço.
-- Botão "Adicionar ao Carrinho".
-- Botão "Personalizar" quando aplicável.
-
----
-
-### Personalização de Produtos
-
-Integrar:
-
-- Pizza meio a meio.
-- Hambúrguer personalizado.
-- Adicionais.
-- Observações.
-
----
-
-### Produtos Indisponíveis
-
-Exibir:
-
-- Produtos indisponíveis marcados visualmente.
-- Mensagem "Temporariamente indisponível".
-- Botão de adicionar desabilitado.
-
----
-
-## Regras de Negócio
-
-- Exibir apenas itens ativos.
-- Busca filtra por nome ou descrição em tempo real.
-- Filtros por categoria combinam com a busca atual.
-- Adicionar ao carrinho atualiza o contador no header.
-- Personalizações são salvas junto ao item.
-
----
-
-## Critérios de Aceite
-
-- Cardápio completo é exibido.
-- Busca funciona em tempo real.
-- Filtros por categoria funcionam.
-- Personalização é acessível.
-- Produtos indisponíveis são bloqueados.
-- Adição ao carrinho atualiza o header.
-
----
-
-# FASE 34 — SISTEMA DE CARRINHO COMO ÍCONE + PÁGINA DO CARRINHO ✅
-
-
-## Objetivo
-
-Transformar o carrinho em um ícone no header que, ao ser clicado, redireciona para uma página dedicada do carrinho.
-
----
-
-## Ícone de Carrinho no Header
-
-Implementar:
-
-- Ícone de carrinho visível em todas as páginas.
-- Contador de itens exibido no ícone.
-- Atualização automática ao adicionar/remover itens.
-- Clique no ícone redireciona para `carrinho.html`.
-
----
-
-## Página do Carrinho
-
-### Estrutura
-
-Exibir:
-
-- Lista de itens do carrinho.
-- Imagem, nome, quantidade e valor de cada item.
-- Personalizações de cada item.
-- Observações.
-- Subtotal.
-- Taxa de entrega.
-- Total.
-
----
-
-### Controles de Quantidade
-
-Implementar:
-
-- Botão incrementar.
-- Botão decrementar.
-- Quantidade mínima de 1.
-- Quantidade máxima por item (`maxQuantity`).
-- Remover item quando quantidade chega a zero.
-
----
-
-### Ações
-
-Implementar:
-
-- Botão "Continuar Comprando" → `cardapio.html`.
-- Botão "Finalizar Pedido" → `checkout.html`.
-- Botão "Limpar Carrinho" com confirmação.
-
----
-
-### Estado Vazio
-
-Exibir:
-
-- Mensagem "Seu carrinho está vazio".
-- Botão "Ver Cardápio" → `cardapio.html`.
-
----
-
-## Regras de Negócio
-
-- Atualização instantânea de subtotal e total.
-- Não permitir total negativo.
-- Taxa de entrega fixa ou variável conforme subtotal.
-- Personalizações permanecem salvas.
-
----
-
-## Critérios de Aceite
-
-- Ícone de carrinho aparece em todas as páginas.
-- Contador reflete a quantidade de itens.
-- Clique no ícone redireciona para a página do carrinho.
-- Página do carrinho exibe todos os itens com personalizações.
-- Quantidades podem ser alteradas.
-- Valores são recalculados corretamente.
-- Estado vazio é exibido quando não há itens.
-
----
-
-# FASE 35 — PÁGINA DE CHECKOUT
-
-## Objetivo
-
-Criar uma página dedicada ao checkout, com formulário de entrega, pagamento simulado e registro do pedido.
-
----
-
-## Estrutura da Página
-
-### Resumo do Pedido
-
-Exibir:
-
-- Lista resumida dos itens.
-- Subtotal.
-- Taxa de entrega.
-- Total.
-
----
-
-### Formulário de Entrega
-
-Campos:
-
-- Nome completo.
-- CPF/CNPJ (opcional).
-- E-mail.
-- Telefone.
-- Endereço de entrega.
-- Número.
-- Complemento (opcional).
-- Bairro.
-- Cidade.
-- CEP.
-
----
-
-### Pré-preenchimento com Perfil
-
-Implementar:
-
-- Preencher automaticamente com dados do perfil quando logado.
-- Opção "Usar dados do perfil" marcada por padrão.
-- Permitir edição dos campos.
-
----
-
-### Método de Pagamento
-
-Opções simuladas:
-
-- Cartão de crédito.
-- Cartão de débito.
-- Pix.
-- Dinheiro (com troco).
-
----
-
-### Confirmação
-
-Implementar:
-
-- Botão "Finalizar Pedido".
-- Validação de todos os campos obrigatórios.
-- Simulação de processamento.
-- Registro do pedido.
-- Redirecionamento para o comprovante.
-
----
-
-## Regras de Negócio
-
-- Campos obrigatórios: nome, endereço, número, forma de pagamento.
-- Validação de formato para e-mail e telefone.
-- Simular falha se campo obrigatório estiver vazio ou inválido.
-- Ao finalizar, limpar o carrinho e registrar o pedido.
-- Pedido recebe número identificador único.
-
----
-
-## Critérios de Aceite
-
-- Resumo do pedido é exibido.
-- Formulário é pré-preenchido com dados do perfil.
-- Validação bloqueia envio com campos inválidos.
-- Pagamento é simulado com sucesso.
-- Carrinho é limpo após finalização.
-- Pedido é registrado com identificador único.
-- Usuário é redirecionado ao comprovante.
-
----
-
-# FASE 36 — SISTEMA DE LOGIN / SIGN IN ESTÁTICO
-
-## Objetivo
-
-Implementar um sistema de login e cadastro estático, sem backend, para preparar a aplicação para autenticação real futura.
-
----
-
-## Página de Login
-
-### Estrutura
-
-Exibir:
-
-- Formulário de login (e-mail e senha).
-- Link para cadastro.
-- Mensagens de erro e sucesso.
-
----
-
-### Regras de Negócio
-
-- E-mail deve ter formato válido.
-- Senha deve ter no mínimo 6 caracteres.
-- Credenciais são validadas contra usuários cadastrados em `localStorage`.
-- Sessão é salva em `localStorage`.
-
----
-
-## Página de Cadastro (Sign In)
-
-### Estrutura
-
-Exibir:
-
-- Formulário de cadastro.
-- Nome completo.
-- E-mail.
-- Senha.
-- Confirmação de senha.
-- Telefone (opcional).
-
----
-
-### Regras de Negócio
-
-- E-mail deve ser único.
-- Senha deve ter no mínimo 6 caracteres.
-- Confirmação de senha deve ser igual à senha.
-- Dados são salvos em `localStorage`.
-- Após cadastro, usuário é logado automaticamente.
-
----
-
-## Sessão do Usuário
-
-Implementar:
-
-- Chave `fastlanche_session`.
-- Armazenamento do usuário logado.
-- Verificação de sessão ao carregar páginas.
-- Botão "Sair" que encerra a sessão.
-
----
-
-## Integração com Perfil
-
-Ao logar:
-
-- Perfil é carregado com dados do usuário.
-- Checkout é pré-preenchido.
-- Nome aparece no header.
-- Avatar exibe iniciais ou foto.
-
----
-
-## Critérios de Aceite
-
-- Usuário consegue se cadastrar.
-- Usuário consegue fazer login.
-- Credenciais inválidas exibem erro.
-- Sessão persiste entre páginas.
-- Usuário consegue sair.
-- Dados do perfil são carregados após login.
-
----
-
-# FASE 37 — SISTEMA DE PERFIL AVANÇADO
-
-## Objetivo
-
-Evoluir o sistema de perfil para uma página dedicada, integrada ao login, com dados pessoais, avatar, preferências e histórico.
-
----
-
-## Página de Perfil
-
-### Estrutura
-
-Exibir:
-
-- Dados pessoais (nome, e-mail, telefone, endereço).
-- Avatar / foto.
-- Preferências.
-- Histórico de pedidos.
-- Solicitação de admin.
-
----
-
-### Dados Pessoais
-
-Campos editáveis:
-
-- Nome completo.
-- E-mail.
-- Telefone.
-- Endereço padrão de entrega.
-
----
-
-### Avatar / Foto
-
-Implementar:
-
-- Exibição da foto atual ou iniciais.
-- Upload de imagem (FileReader, Base64).
-- Remoção de foto.
-- Pré-visualização.
-
----
-
-### Preferências
-
-Configurações:
-
-- Método de pagamento preferido.
-- Preferência de notificações.
-- Tema claro/escuro (preparação).
-
----
-
-### Histórico de Pedidos
-
-Exibir:
-
-- Lista de pedidos do usuário.
-- Número do pedido.
-- Data.
-- Status.
-- Valor total.
-- Link para acompanhar pedido.
-
----
-
-### Solicitação de Admin
-
-Integrar:
-
-- Formulário de solicitação.
-- Status da solicitação.
-- Dados do restaurante.
-
----
-
-## Regras de Negócio
-
-- Acesso ao perfil exige login.
-- Usuário deslogado é redirecionado para `login.html`.
-- Dados persistem em `localStorage`.
-- Alterações são salvas e refletidas no sistema.
-
----
-
-## Critérios de Aceite
-
-- Perfil é acessível apenas com login.
-- Dados podem ser editados e salvos.
-- Avatar pode ser adicionado e removido.
-- Histórico de pedidos é exibido.
-- Solicitação de admin é acessível.
-- Dados persistem entre sessões.
-
----
-
-# FASE 38 — RESERVAS DE MESAS AVANÇADAS
-
-## Objetivo
-
-Evoluir o sistema de reservas com pagamento adiantado simulado e controle de disponibilidade de mesas em tempo real.
-
----
-
-## Página de Reservas
-
-### Estrutura
-
-Exibir:
-
-- Disponibilidade de mesas.
-- Seleção de data.
-- Seleção de horário.
-- Número de pessoas.
-- Pagamento adiantado.
-- Confirmação.
-
----
-
-### Controle de Disponibilidade de Mesas
-
-Implementar:
-
-- Quantidade total de mesas do restaurante.
-- Mesas reservadas por data e horário.
-- Mesas disponíveis no momento.
-- Bloqueio de reserva quando não há mesas disponíveis.
-
----
-
-### Seleção de Data e Horário
-
-Regras:
-
-- Data não pode ser no passado.
-- Horário dentro do período de atendimento.
-- Horários disponíveis calculados conforme mesas livres.
-
----
-
-### Número de Pessoas
-
-Regras:
-
-- Mínimo de 1 pessoa.
-- Máximo conforme capacidade (`maxGuests`).
-- Verificação de mesas necessárias para o grupo.
-
----
-
-### Pagamento Adiantado
-
-Implementar:
-
-- Valor da reserva (taxa de reserva).
-- Métodos de pagamento simulados.
-- Confirmação de pagamento antes da reserva.
-- Registro do pagamento.
-
----
-
-### Confirmação da Reserva
-
-Exibir:
-
-- Número da reserva.
-- Data e horário.
-- Número de pessoas.
-- Mesa(s) alocada(s).
-- Valor pago.
-- Status da reserva.
-
----
-
-## Regras de Negócio
-
-- Reserva só é confirmada após pagamento adiantado.
-- Mesas são bloqueadas após confirmação.
-- Não permitir reserva sem disponibilidade.
-- Reservas persistem em `localStorage`.
-
----
-
-## Critérios de Aceite
-
-- Usuário visualiza mesas disponíveis.
-- Usuário seleciona data, horário e pessoas.
-- Pagamento adiantado é processado.
-- Reserva é confirmada com número identificador.
-- Mesas são bloqueadas após confirmação.
-- Não é possível reservar sem disponibilidade.
-
----
-
-# FASE 39 — SISTEMA DE FEEDBACKS AVANÇADO
-
-## Objetivo
-
-Evoluir o sistema de feedbacks permitindo seleção de produtos específicos avaliados e pesquisa/filtro de comentários.
-
----
-
-## Página de Feedbacks
-
-### Estrutura
-
-Exibir:
-
-- Formulário de avaliação.
-- Seleção de produto(s) avaliado(s).
-- Nota (estrelas).
-- Comentário.
-- Lista de avaliações.
-- Pesquisa e filtros.
-- Nota média.
-
----
-
-### Seleção de Produtos Avaliados
-
-Implementar:
-
-- Lista de produtos comprados pelo usuário.
-- Seleção de um ou mais produtos para avaliar.
-- Produtos selecionados vinculados ao feedback.
-- Exibição dos produtos no feedback publicado.
-
----
-
-### Formulário de Avaliação
-
-Regras:
-
-- Nota mínima de 1 estrela.
-- Comentário mínimo de 10 caracteres.
-- Pelo menos um produto selecionado.
-- Prevenção de duplicidade.
-
----
-
-### Pesquisa e Filtro de Feedbacks
-
-Implementar:
-
-- Campo de busca por texto.
-- Filtro por produto.
-- Filtro por nota.
-- Filtro por comentários recentes.
-- Combinação de busca e filtros.
-
----
-
-### Nota Média
-
-Implementar:
-
-- Cálculo da média geral.
-- Cálculo da média por produto.
-- Atualização a cada novo feedback.
-
----
-
-## Regras de Negócio
-
-- Apenas produtos comprados podem ser avaliados.
-- Feedback exige seleção de produto.
-- Busca filtra por texto do comentário ou nome do produto.
-- Filtros combinam com a busca atual.
-- Feedbacks persistem em `localStorage`.
-
----
-
-## Critérios de Aceite
-
-- Usuário seleciona produtos comprados para avaliar.
-- Feedback é vinculado aos produtos selecionados.
-- Pesquisa filtra comentários por texto.
-- Filtro por produto funciona.
-- Filtro por nota funciona.
-- Comentários recentes são exibidos.
-- Nota média é atualizada.
-
----
-
-# FASE 40 — MELHORIAS DE SEGURANÇA
-
-## Objetivo
-
-Reforçar a segurança da aplicação, protegendo dados, entradas e estados contra manipulação e ataques.
-
----
-
-## Sanitização de Entradas
-
-Implementar:
-
-- Sanitização de todos os campos de texto.
-- Remoção de tags HTML e scripts.
-- Escape de caracteres especiais.
-- Validação de comprimento máximo.
-
----
-
-## Proteção contra XSS
-
-Implementar:
-
-- Uso de `textContent` em vez de `innerHTML` para dados dinâmicos.
-- Criação de elementos via `createElement`.
-- Sanitização antes de qualquer inserção no DOM.
-
----
-
-## Validação de Dados
-
-Implementar:
-
-- Validação de formatos (e-mail, telefone, CEP).
-- Validação de limites numéricos.
-- Validação de datas e horários.
-- Rejeição de dados inválidos.
-
----
-
-## Proteção de Dados Sensíveis
-
-Implementar:
-
-- Não armazenar senhas em texto puro (hash simples simulado).
-- Não exibir dados sensíveis em logs.
-- Limpeza de dados ao sair da sessão.
-
----
-
-## Controle de Acesso
-
-Implementar:
-
-- Verificação de sessão em páginas restritas.
-- Redirecionamento para login quando necessário.
-- Bloqueio de funcionalidades administrativas para não admins.
-
----
-
-## Tratamento de Erros
-
-Implementar:
-
-- `try/catch` em todas as operações de persistência.
-- Mensagens de erro amigáveis.
-- Não expor detalhes internos ao usuário.
-
----
-
-## Critérios de Aceite
-
-- Entradas são sanitizadas.
-- Nenhum script é executado a partir de dados do usuário.
-- Dados inválidos são rejeitados.
-- Senhas não são armazenadas em texto puro.
-- Páginas restritas exigem login.
-- Erros são tratados sem expor detalhes internos.
-
----
-
-# FASE 41 — OTIMIZAÇÃO E REFINAMENTO
-
-## Objetivo
-
-Otimizar o desempenho, a organização do código e a experiência geral da aplicação após a migração multi-páginas.
-
----
-
-## Otimização de Código
-
-Implementar:
-
-- Remoção de código duplicado.
-- Reutilização de funções via módulos compartilhados.
-- Organização de constantes.
-- Padronização de nomenclatura.
-
----
-
-## Otimização de Performance
-
-Implementar:
-
-- Carregamento eficiente de scripts por página.
-- Uso de `defer` para scripts.
-- Compressão de imagens.
-- Redução de operações desnecessárias no DOM.
-
----
-
-## Otimização de UX
-
-Implementar:
-
-- Transições suaves entre páginas.
-- Feedback visual em todas as ações.
-- Estados de carregamento.
-- Mensagens de confirmação claras.
-
----
-
-## Refinamento Visual
-
-Implementar:
-
-- Consistência da paleta de cores.
-- Alinhamento e espaçamento uniformes.
-- Hierarquia visual clara.
-- Acessibilidade básica (labels, foco, contraste).
-
----
-
-## Refinamento de Fluxos
-
-Revisar:
-
-- Fluxo de compra completo.
-- Fluxo de reserva.
-- Fluxo de feedback.
-- Fluxo de login.
-- Fluxo de perfil.
-
----
-
-## Critérios de Aceite
-
-- Código está organizado e sem duplicação.
-- Páginas carregam de forma eficiente.
-- Ações possuem feedback visual.
-- Interface é consistente.
-- Fluxos principais funcionam sem atritos.
-
----
-
-# FASE 42 — REORGANIZAÇÃO DE RESPONSIVIDADE
-
-## Objetivo
-
-Reorganizar a responsividade da aplicação para a nova arquitetura multi-páginas, garantindo experiência consistente em todos os dispositivos.
-
----
-
-## Dispositivos de Teste
-
-Validar:
-
-- Smartphones pequenos.
-- Smartphones grandes.
-- Tablets.
-- Desktop.
-
----
-
-## Ajustes por Página
-
-### Home
-
-- Hero responsivo.
-- Cards de redirecionamento empilhados no mobile.
-
-### Cardápio
-
-- Grid de produtos adaptável.
-- Busca e filtros acessíveis no mobile.
-
-### Carrinho
-
-- Lista de itens legível no mobile.
-- Botões de quantidade com tamanho adequado para toque.
-
-### Checkout
-
-- Formulário de coluna única no mobile.
-- Resumo do pedido acessível.
-
-### Login / Perfil
-
-- Formulários responsivos.
-- Avatar e dados organizados.
-
-### Reservas
-
-- Seleção de data e horário adaptável.
-- Disponibilidade de mesas legível.
-
-### Feedbacks
-
-- Formulário e lista responsivos.
-- Filtros acessíveis no mobile.
-
----
-
-## Ajustes Globais
-
-Revisar:
-
-- Tamanhos de fonte.
-- Espaçamentos.
-- Botões.
-- Cards.
-- Formulários.
-- Imagens.
-- Modais.
-- Menus.
-- Header e footer.
-
----
-
-## Critérios de Aceite
-
-- Nenhum elemento quebra em diferentes telas.
-- Interface permanece confortável.
-- Botões possuem tamanho adequado para toque.
-- Todas funcionalidades continuam acessíveis.
-- Navegação entre páginas é fluida no mobile.
-
----
-
-# FASE 43 — TESTES DAS NOVAS IMPLEMENTAÇÕES
-
-## Objetivo
-
-Realizar uma validação completa de todas as novas implementações do módulo 3.
-
----
-
-## Testes da Arquitetura Multi-Páginas
-
-Validar:
-
-- Navegação entre todas as páginas.
-- Header e footer consistentes.
-- Carrinho persiste entre páginas.
-- Sessão persiste entre páginas.
-
----
-
-## Testes da Home
-
-Validar:
-
-- Apresentação do restaurante.
-- Produto em destaque.
-- Redirecionamentos.
-- Contador do carrinho.
-
----
-
-## Testes do Cardápio
-
-Validar:
-
-- Busca e filtros.
-- Personalização.
-- Adição ao carrinho.
-- Produtos indisponíveis.
-
----
-
-## Testes do Carrinho
-
-Validar:
-
-- Ícone com contador.
-- Redirecionamento para página do carrinho.
-- Alteração de quantidades.
-- Cálculo de valores.
-- Estado vazio.
-
----
-
-## Testes do Checkout
-
-Validar:
-
-- Pré-preenchimento com perfil.
-- Validação de campos.
-- Pagamento simulado.
-- Registro do pedido.
-- Redirecionamento ao comprovante.
-
----
-
-## Testes de Login / Sign In
-
-Validar:
-
-- Cadastro de usuário.
-- Login com credenciais válidas.
-- Erro com credenciais inválidas.
-- Sessão persistente.
-- Logout.
-
----
-
-## Testes do Perfil
-
-Validar:
-
-- Acesso restrito com login.
-- Edição de dados.
-- Avatar.
-- Histórico de pedidos.
-- Solicitação de admin.
-
----
-
-## Testes de Reservas
-
-Validar:
-
-- Disponibilidade de mesas.
-- Seleção de data, horário e pessoas.
-- Pagamento adiantado.
-- Confirmação da reserva.
-- Bloqueio de mesas.
-
----
-
-## Testes de Feedbacks
-
-Validar:
-
-- Seleção de produtos comprados.
-- Vínculo do feedback ao produto.
-- Pesquisa e filtros.
-- Nota média.
-
----
-
-## Testes de Segurança
-
-Validar:
-
-- Sanitização de entradas.
-- Proteção contra XSS.
-- Validação de dados.
-- Controle de acesso.
-- Tratamento de erros.
-
----
-
-## Testes de Integração
-
-Validar:
-
-- Login → Perfil → Checkout.
-- Cardápio → Carrinho → Checkout → Pedido.
-- Reserva → Pagamento → Confirmação.
-- Feedback → Produto → Lista.
-
----
-
-## Critérios de Aceite
-
-- Nenhum bug crítico encontrado.
-- Fluxo completo funcionando:
-
-```
-Usuário acessa Home
-
-↓
-
-Faz login / cadastro
-
-↓
-
-Navega pelo cardápio
-
-↓
-
-Adiciona itens ao carrinho
-
-↓
-
-Revisa carrinho
-
-↓
-
-Finaliza checkout (com dados do perfil)
-
-↓
-
-Recebe comprovante
-
-↓
-
-Avalia produtos comprados
-
-↓
-
-Reserva mesa com pagamento adiantado
-```
-
-- Segurança validada.
-- Todas as novas funcionalidades aprovadas.
-
----
-
-# FASE 44 — PREPARAÇÃO PARA BACKEND
-
-## Objetivo
-
-Preparar a arquitetura da aplicação para integração com um backend real, mantendo o funcionamento atual com dados locais.
-
----
-
-## Camada de Dados Abstrata
-
-Implementar:
-
-- Interface de acesso a dados.
-- Funções de leitura e escrita.
-- Separação entre dados locais e futuros dados remotos.
-- Preparação para substituição por chamadas de API.
-
----
-
-## Preparação de Autenticação
-
-Implementar:
-
-- Estrutura de sessão preparada para token.
-- Funções de login/cadastro isoladas.
-- Preparação para validação no servidor.
-- Armazenamento de credenciais de forma segura.
-
----
-
-## Preparação de API
-
-Implementar:
-
-- Definição de endpoints futuros.
-- Estrutura de requisições (fetch).
-- Tratamento de respostas.
-- Estados de carregamento e erro.
-
----
-
-## Preparação de Dados
-
-Implementar:
-
-- Modelos de dados padronizados.
-- Estruturas de produtos, pedidos, reservas e feedbacks.
-- Preparação para sincronização.
-
----
-
-## Documentação Técnica
-
-Preparar:
-
-- Estrutura do projeto.
-- Responsabilidade dos arquivos.
-- Fluxos principais.
-- Regras de negócio.
-- Pontos de integração com backend.
-
----
-
-## Critérios de Aceite
-
-- Camada de dados é abstrata e substituível.
-- Autenticação está preparada para token.
-- Estrutura de API está definida.
-- Modelos de dados são padronizados.
-- Documentação técnica está completa.
-
----
-
-# FASE 45 — PREPARAÇÃO PARA PRODUÇÃO FINAL
-
-## Objetivo
-
-Preparar a aplicação multi-páginas para disponibilização pública.
-
----
-
-## Revisão Final
-
-Executar:
-
-- Revisão visual.
-- Revisão funcional.
-- Revisão da arquitetura.
-- Limpeza de arquivos.
-- Organização dos assets.
-
----
-
-## Otimização
-
-Realizar:
-
-- Compressão de imagens.
-- Organização dos recursos.
-- Verificação de carregamento.
-- Revisão de performance.
-
----
-
-## Segurança Final
-
-Validar:
-
-- Campos de formulário.
-- Manipulação de dados.
-- Estados inválidos.
-- Proteção contra entradas incorretas.
-- Sanitização em todas as páginas.
-
----
-
-## Documentação
-
-Preparar:
-
-- Estrutura do projeto.
-- Responsabilidade dos arquivos.
-- Fluxos principais.
-- Regras de negócio.
-- Guia de navegação entre páginas.
-
----
-
-## Critérios de Aceite
-
-- Aplicação pronta para publicação.
-- Todas funcionalidades principais aprovadas.
-- Arquitetura multi-páginas estável.
-- Segurança validada.
-- Projeto organizado para futuras integrações.
-
----
-
-# ORDEM FINAL DO IMPLEMENTATION PLAN 3
-
-```
-FASE 30
-Análise Geral do Projeto
-
-↓
-
-FASE 31
-Arquitetura Multi-Páginas
-
-↓
-
-FASE 32
-Página Home
-
-↓
-
-FASE 33
-Página de Cardápio
-
-↓
-
-FASE 34
-Sistema de Carrinho como Ícone + Página do Carrinho
-
-↓
-
-FASE 35
-Página de Checkout
-
-↓
-
-FASE 36
-Sistema de Login / Sign In Estático
-
-↓
-
-FASE 37
-Sistema de Perfil Avançado
-
-↓
-
-FASE 38
-Reservas de Mesas Avançadas
-
-↓
-
-FASE 39
-Sistema de Feedbacks Avançado
-
-↓
-
-FASE 40
-Melhorias de Segurança
-
-↓
-
-FASE 41
-Otimização e Refinamento
-
-↓
-
-FASE 42
-Reorganização de Responsividade
-
-↓
-
-FASE 43
-Testes das Novas Implementações
-
-↓
-
-FASE 44
-Preparação para Backend
-
-↓
+Dependências importantes:
 
-FASE 45
-Preparação para Produção Final
-```
+- Fase 35 precisa estabilizar o modelo de pedido antes do histórico do Perfil e da elegibilidade de Feedbacks.
+- Fases 36 e 37 precisam definir sessão e identidade antes de proteger páginas e vincular dados ao usuário.
+- Fase 40 deve acompanhar as demais fases; não deve ser deixada somente para o final.
+- Fase 43 valida o comportamento final e não substitui os testes unitários adicionados durante cada fase.
+- Fase 45 só pode ser concluída após o build conter todos os shells migrados que o produto decidir publicar.
 
 ---
 
-# RESULTADO ESPERADO
+# 5. DEFINITION OF DONE DO MÓDULO 3
 
-Ao finalizar todas as fases deste terceiro módulo, o Fast Lanche terá evoluído para uma plataforma multi-páginas profissional, contendo:
+O Módulo 3 será considerado concluído quando:
 
-- Arquitetura multi-páginas com navegação clara.
-- Página Home com apresentação e produto destaque.
-- Página de Cardápio dedicada.
-- Carrinho como ícone com página dedicada.
-- Página de Checkout dedicada.
-- Sistema de login/sign in estático.
-- Perfil de usuário avançado integrado ao login.
-- Reservas com pagamento adiantado e controle de mesas.
-- Feedbacks com seleção de produtos e pesquisa/filtro.
-- Segurança reforçada.
-- Código otimizado e refinado.
-- Responsividade reorganizada.
-- Testes completos das novas implementações.
-- Base preparada para backend real.
-- Aplicação pronta para produção.
+- as fases 35 a 45 estiverem marcadas como concluídas com evidência de teste;
+- Checkout, Login, Perfil, Reservas, Feedbacks e Comprovante estiverem disponíveis pela arquitetura React definida;
+- os services permitirem substituir adapters locais por API sem reescrever as páginas;
+- os dados persistidos forem validados, sanitizados e tratados como não confiáveis;
+- os fluxos críticos forem aprovados em desktop e mobile;
+- `npm test`, `npm run build` e `npm run preview` funcionarem conforme documentado;
+- o `README.md` e a documentação de migração refletirem os URLs e limitações atuais.
