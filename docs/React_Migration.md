@@ -1,6 +1,6 @@
 # Migração React do Fast Lanche
 
-As páginas de Home, Cardápio, Carrinho, Checkout, Reservas e Feedbacks agora são montadas por React através do entrypoint `src/main.jsx`. Os documentos HTML continuam como pontos de entrada independentes para preservar os URLs públicos e o CSS existente.
+As páginas de Home, Cardápio, Carrinho, Checkout, Comprovante, Login, Reservas e Feedbacks agora são montadas por React através do entrypoint `src/main.jsx`. Os documentos HTML continuam como pontos de entrada independentes para preservar os URLs públicos e o CSS existente.
 
 ## Camadas
 
@@ -21,7 +21,7 @@ React components
 
 ## Compatibilidade visual
 
-Os componentes React mantêm os IDs, classes, textos, assets e variáveis de `css/styles.css` usados pela versão anterior. Não foi introduzida uma biblioteca visual nem uma nova paleta. As páginas de login, perfil e administração continuam utilizando seus módulos legados enquanto seus fluxos específicos não fazem parte da migração inicial.
+Os componentes React mantêm os IDs, classes, textos, assets e variáveis de `css/styles.css` usados pela versão anterior. Não foi introduzida uma biblioteca visual nem uma nova paleta. As páginas de perfil e administração continuam utilizando seus módulos legados (o login React é compatível com as contas do legado) enquanto seus fluxos específicos não fazem parte da migração inicial.
 
 ## Persistência e API
 
@@ -36,7 +36,7 @@ Os testes legados podem ser executados com `node --test tests/*.mjs`. O build de
 Navegador e Node não executam JSX diretamente (é preciso transpilar). Os shells em `react/` existem para isso: cada um tem apenas `<div id="root"></div>` e o `src/main.jsx`, e o `App.jsx` escolhe a página pelo nome do arquivo na URL.
 
 - **Dev server (transpila em tempo real):** `npm run dev` e abra
-  `http://localhost:5173/react/index.html`, `/react/cardapio.html`, `/react/carrinho.html`, `/react/checkout.html`, `/react/reservas.html`, `/react/feedbacks.html`.
+  `http://localhost:5173/react/index.html`, `/react/cardapio.html`, `/react/carrinho.html`, `/react/checkout.html`, `/react/receipt.html`, `/react/login.html`, `/react/reservas.html`, `/react/feedbacks.html`.
   As páginas legadas continuam disponíveis em `http://localhost:5173/index.html` (não precisam do Vite).
 - **Build estático:** `npm run build` gera `dist/` (páginas legadas + `dist/react/*.html`) com caminhos relativos; funciona em qualquer servidor estático, inclusive Live Server (`base: './'`), e com `npm run preview`.
 - **Sem dev server (transpilação avulsa):**

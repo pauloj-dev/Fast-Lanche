@@ -39,7 +39,9 @@ export function normalizeOrder(input) {
   const paymentStatus = safeText(input.paymentStatus || input.payment?.status, 'pending');
   const orderNumber = safeText(input.orderNumber || input.id);
   if (!orderNumber) return null;
-  return { id: orderNumber, orderNumber, customer, customerName: customer.name, email: customer.email, userEmail: customer.email, phone: customer.phone, address: customer.address, document: customer.document, items, subtotal, deliveryFee, total: calculateTotal(subtotal, deliveryFee), paymentMethod, paymentStatus, status, createdAt: safeText(input.createdAt, new Date().toISOString()) };
+  // userProfileId: conta logada que fez o pedido (mesmo campo do js/checkout.js legado), base do historico do Perfil.
+  const userProfileId = safeText(input.userProfileId).toLowerCase();
+  return { id: orderNumber, orderNumber, customer, customerName: customer.name, email: customer.email, userEmail: userProfileId || customer.email, userProfileId, phone: customer.phone, address: customer.address, document: customer.document, items, subtotal, deliveryFee, total: calculateTotal(subtotal, deliveryFee), paymentMethod, paymentStatus, status, createdAt: safeText(input.createdAt, new Date().toISOString()) };
 }
 
 export function buildOrder(input = {}) {

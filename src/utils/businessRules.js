@@ -1,6 +1,11 @@
 export const DELIVERY_FEE = 6;
 export const FREE_DELIVERY_MINIMUM = 50;
 export const MAX_GUESTS = 12;
+export const MIN_PASSWORD_LENGTH = 6;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const normalizeEmail = value => String(value || '').trim().toLowerCase();
+export const isValidEmail = value => EMAIL_PATTERN.test(normalizeEmail(value));
 
 export const calculateSubtotal = items => items.reduce(
   (sum, item) => sum + Math.max(Number(item.price) || 0, 0) * Math.max(Number(item.quantity) || 0, 0), 0
@@ -42,7 +47,7 @@ export function validateCheckout(data, itemCount) {
   if (!itemCount) errors.push('Adicione pelo menos um item ao carrinho.');
   if (String(data.name || '').trim().length < 3) errors.push('Informe seu nome completo.');
   if (digits.length < 10 || digits.length > 11) errors.push('Informe um telefone valido.');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email || '').trim())) errors.push('Informe um e-mail valido.');
+  if (!isValidEmail(data.email)) errors.push('Informe um e-mail valido.');
   if (String(data.address || '').trim().length < 8) errors.push('Informe um endereco de entrega valido.');
   if (!data.payment) errors.push('Selecione uma forma de pagamento.');
   const documentDigits = String(data.document || '').replace(/\D/g, '');
@@ -72,3 +77,22 @@ export function validateFeedback({ name, rating, comment }) {
 export const calculateAverageRating = feedbacks => feedbacks.length
   ? feedbacks.reduce((sum, feedback) => sum + Number(feedback.rating || 0), 0) / feedbacks.length
   : 0;
+
+export function validateLogin({ email, password } = {}) {
+  if (!String(email || '').trim() || !password) return ['Preencha e-mail e senha.'];
+  const errors = [];
+  if (!isValidEmail(email)) errors.push('Informe um e-mail valido.');
+  if (String(password).length < MIN_PASSWORD_LENGTH) errors.push(`A senha deve ter no minimo ${MIN_PASSWORD_LENGTH} caracteres.`);
+  return errors;
+}
+
+export function validateSignup({ name, email, password, confirmPassword, phone } = {}) {
+  const errors = [];
+  if (String(name || '').trim().length < 3) errors.push('O nome deve ter pelo menos 3 caracteres.');
+  if (!isValidEmail(email)) errors.push('Informe um e-mail valido.');
+  if (String(password || '').length < MIN_PASSWORD_LENGTH) errors.push(`A senha deve ter no minimo ${MIN_PASSWORD_LENGTH} caracteres.`);
+  else if (password !== confirmPassword) errors.push('As senhas nao coincidem.');
+  const phoneDigits = String(phone || '').replace(/\D/g, '');
+  if (String(phone || '').trim() && (phoneDigits.length < 10 || phoneDigits.length > 11)) errors.push('Informe um telefone valido com DDD.');
+  return errors;
+}

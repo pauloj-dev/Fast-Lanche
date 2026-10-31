@@ -11,6 +11,7 @@ import { getAppState } from './app-state.js';
 const ORDERS_STORAGE_KEY = 'fastlanche_orders';
 const RECEIPTS_STORAGE_KEY = 'fastlanche_receipts';
 const PROFILE_STORAGE_KEY = 'fastlanche_user_profile';
+const SESSION_STORAGE_KEY = 'fastlanche_session';
 const CLAIM_STORAGE_KEY = 'fastlanche_admin_claim';
 
 // ============================================
@@ -345,6 +346,7 @@ function handleLogout() {
     confirmBtn.addEventListener('click', () => {
         // Simular logout: limpar perfil e admin claim
         try {
+            localStorage.removeItem(SESSION_STORAGE_KEY);
             localStorage.removeItem(PROFILE_STORAGE_KEY);
             localStorage.removeItem(CLAIM_STORAGE_KEY);
         } catch (error) {

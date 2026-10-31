@@ -26,8 +26,8 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 
 | Fase | Tema | Estado | Próximo resultado esperado |
 | --- | --- | --- | --- |
-| 35 | Checkout | Concluida | Comprovante React, fluxo de conclusão e modelo de pedido completo |
-| 36 | Login / Sign In | Pendente | Autenticação estática integrada ao shell React |
+| 35 | Checkout | Concluída | Comprovante React, fluxo de conclusão e modelo de pedido completo |
+| 36 | Login / Sign In | Concluída | Autenticação estática integrada ao shell React |
 | 37 | Perfil avançado | Pendente | Perfil React protegido, preferências e histórico |
 | 38 | Reservas avançadas | Parcial | Disponibilidade, pagamento simulado e confirmação |
 | 39 | Feedbacks avançados | Parcial | Feedback vinculado a produtos com busca e filtros |
@@ -53,6 +53,8 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 │   ├── cardapio.html              # Cardápio
 │   ├── carrinho.html              # Carrinho
 │   ├── checkout.html              # Checkout
+│   ├── receipt.html               # Comprovante do pedido
+│   ├── login.html                 # Login e cadastro
 │   ├── reservas.html              # Reservas
 │   └── feedbacks.html             # Feedbacks
 ├── src/
@@ -95,14 +97,15 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Linhas do carrinho: identificadas por `cartItemId` (mesmo contrato de `js/cart.js`), pois o mesmo produto pode ter linhas com personalizações diferentes.
 - Reserva: `src/services/bookingService.js`.
 - Feedback: `src/services/feedbackService.js`.
-- Sessão: chave `fastlanche_session`, atualmente lida por `src/services/authService.js` e pelo `Header`.
+- Sessão e contas: `src/services/authService.js` é o único ponto que lê/grava `fastlanche_users`, `fastlanche_session` e `fastlanche_user_profile`; o `Header` usa `getAccount()`.
+- Checkout: `src/services/checkoutService.js` (`placeOrder`) concentra validação, pagamento simulado e gravação do pedido.
 - API futura: `src/services/api/apiClient.js`.
 
 ---
 
 # 3. IMPLEMENTAÇÃO PENDENTE
 
-## FASE 35 - CHECKOUT E COMPROVANTE (CONCLUIDA)
+## FASE 35 - CHECKOUT E COMPROVANTE (CONCLUÍDA)
 
 ### Já entregue
 
@@ -118,6 +121,13 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - O endereço de entrega usa o mesmo campo de texto no formulário, na validação e no pedido salvo.
 - Carrinho vazio, falha de persistência e reenvio do formulário possuem estados de carregamento e erro.
 - O fluxo checkout -> pedido -> comprovante possui testes de contrato e persistência.
+- O fluxo foi extraído para `src/services/checkoutService.js` (`placeOrder`): validação -> pagamento -> pedido -> referência. Pagamento recusado não cria pedido.
+- O pedido guarda `userProfileId` (e-mail da conta logada), base do histórico da Fase 37.
+
+### Evidência
+
+- `tests/test-order-flow.mjs` e `tests/test-checkout-flow.mjs`: envio inválido e pagamento recusado não criam pedido; aprovado cria exatamente um pedido, recarregável pelo mesmo contrato.
+- Validado no navegador (`npm run build` + `npm run preview`): Cardápio -> Carrinho -> Checkout -> Comprovante, inclusive recarregando o comprovante.
 
 ### Critérios de aceite
 
@@ -128,9 +138,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 36 - LOGIN E SIGN IN ESTÁTICOS (PENDENTE)
+## FASE 36 - LOGIN E SIGN IN ESTÁTICOS (CONCLUÍDA)
 
-### Trabalho restante
+### Escopo entregue
 
 - Criar `src/pages/LoginPage.jsx` com alternância entre login e cadastro.
 - Criar `react/login.html`, registrá-lo no `vite.config.js` e incluí-lo no mapa de `src/App.jsx`.
@@ -146,6 +156,21 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Credenciais inválidas, e-mail duplicado e campos incompletos geram mensagens úteis.
 - Logout remove somente a sessão ativa e atualiza o header.
 - Nenhuma senha é exibida no header, no pedido ou no comprovante.
+
+### Entregue nesta fase
+
+- `src/pages/LoginPage.jsx` + `react/login.html`: abas Login/Cadastro, estados de carregamento e erro, foco no campo após erro, tela de "já conectado" com Continuar/Sair e redirecionamento seguro por `?redirect=` (somente páginas do próprio shell).
+- `src/services/authService.js`: `register`, `login`, `logout`, `readSession`/`getSession`, `getCurrentProfile`, `getAccount`. Usa o mesmo hash e modelo de usuário de `js/page-init.js`: contas criadas no legado entram pelo React e vice-versa.
+- Validações puras em `src/utils/businessRules.js` (`validateLogin`, `validateSignup`, `normalizeEmail`). E-mail é comparado sem diferenciar maiúsculas; login inválido usa a mesma mensagem para e-mail inexistente e senha errada.
+- Sessão e perfil nunca contêm senha nem hash. Logout remove somente `fastlanche_session`.
+- `Header`: botão Entrar leva ao login com retorno para a página atual; logado mostra avatar/iniciais (Perfil ainda legado) e botão Sair.
+- Checkout só pré-preenche com o perfil da conta logada (perfil de outra conta é ignorado) e oferece o login para preencher.
+- Legado: o logout de `js/user-navigation.js` passou a remover também a sessão (antes o usuário continuava logado).
+
+### Evidência
+
+- `tests/test-auth.mjs`: validações, cadastro, e-mail duplicado, login com conta legada, credenciais inválidas, logout, sessão corrompida, perfil de outra conta e redirecionamento seguro.
+- Validado no navegador: cadastro com erro de confirmação -> cadastro válido -> retorno ao cardápio logado -> checkout pré-preenchido -> logout pelo header -> login com senha errada/certa -> login na página legada com a conta criada no React. Tela de login sem overflow em 375px.
 
 > A autenticação continua sendo apenas uma simulação local. Não tratar o armazenamento no navegador como autenticação segura de produção.
 

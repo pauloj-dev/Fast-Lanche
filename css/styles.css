@@ -5366,3 +5366,59 @@ button:disabled .spinner {
     box-shadow: none;
   }
 }
+
+/* FASE 36 - Login React */
+.form-hint {
+  margin: 0;
+  color: var(--cinza-500);
+  font-size: .875rem;
+  line-height: 1.5;
+}
+
+.form-hint a,
+.link-button {
+  color: var(--preto);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.link-button:focus-visible {
+  outline: 2px solid var(--amarelo);
+  outline-offset: 2px;
+}
+
+.link-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.login-switch {
+  margin: var(--space-3) 0 .5rem;
+  text-align: center;
+}
+
+.login-panel .form-hint {
+  text-align: center;
+}
+
+.login-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .75rem;
+}
+
+@media (max-width: 480px) {
+  .login-session-actions .button {
+    width: 100%;
+  }
+}

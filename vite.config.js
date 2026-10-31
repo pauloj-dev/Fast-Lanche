@@ -34,7 +34,8 @@ export default defineConfig({
         // Shells React (executam src/main.jsx): precisam do Vite (npm run dev / build).
         // Os HTMLs legados acima continuam sendo servidos direto por qualquer servidor estatico.
         'react/index.html', 'react/cardapio.html', 'react/carrinho.html',
-        'react/checkout.html', 'react/receipt.html', 'react/reservas.html', 'react/feedbacks.html'
+        'react/checkout.html', 'react/receipt.html', 'react/reservas.html', 'react/feedbacks.html',
+        'react/login.html'
       ]
     }
   }
