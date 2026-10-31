@@ -1,24 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160">
-  <defs>
-    <style>
-      @keyframes pulse { 0%,100% { opacity: .8 } 50% { opacity: 1 } }
-      .pulse { animation: pulse 3s ease-in-out infinite }
-    </style>
-  </defs>
-  <ellipse cx="120" cy="90" rx="90" ry="55" fill="#C48B3F"/>
-  <ellipse cx="120" cy="88" rx="82" ry="48" fill="#D32F2F"/>
-  <ellipse cx="120" cy="86" rx="78" ry="44" fill="#FFF9C4" opacity=".9"/>
-  <ellipse cx="120" cy="84" rx="75" ry="42" fill="#FFECB3" opacity=".7" class="pulse"/>
-  <circle cx="95" cy="72" r="10" fill="#C62828"/>
-  <circle cx="145" cy="68" r="10" fill="#D32F2F"/>
-  <circle cx="120" cy="95" r="9" fill="#C62828"/>
-  <circle cx="80" cy="95" r="8" fill="#D32F2F"/>
-  <circle cx="160" cy="85" r="9" fill="#C62828"/>
-  <circle cx="105" cy="60" r="4" fill="#2E2E2E"/>
-  <circle cx="138" cy="82" r="4" fill="#2E2E2E"/>
-  <circle cx="90" cy="85" r="3.5" fill="#2E2E2E"/>
-  <circle cx="110" cy="78" r="1.5" fill="#33691E"/>
-  <circle cx="130" cy="72" r="1.5" fill="#33691E"/>
-  <circle cx="100" cy="90" r="1.5" fill="#33691E"/>
-  <circle cx="140" cy="95" r="1.5" fill="#33691E"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Pizza">
+<title>Pizza</title>
+<style>
+.float{animation:float 3.2s ease-in-out infinite}
+.float-slow{animation:float 4.4s ease-in-out infinite}
+.shadow{animation:shadow 3.2s ease-in-out infinite;transform-origin:120px 148px}
+.steam{animation:steam 2.8s ease-in-out infinite;opacity:0}
+.s2{animation-delay:.9s}.s3{animation-delay:1.8s}
+.bubble{animation:bubble 2.4s ease-in infinite;opacity:0}
+.b2{animation-delay:.6s}.b3{animation-delay:1.2s}.b4{animation-delay:1.8s}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.wobble{animation:wobble 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.drip{animation:drip 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.stretch{animation:stretch 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.bob1{animation:float 2.6s ease-in-out infinite}.bob2{animation:float 2.6s ease-in-out .4s infinite}.bob3{animation:float 2.6s ease-in-out .8s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.16}50%{transform:scaleX(.9);opacity:.1}}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes wave{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+@keyframes drip{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes stretch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.25)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.steam,.bubble{opacity:.55}}
+</style>
+<ellipse class="shadow" cx="120" cy="148" rx="74" ry="7" fill="#3B2414"/>
+<ellipse cx="120" cy="108" rx="100" ry="40" fill="#A86A3D"/><ellipse cx="120" cy="104" rx="100" ry="38" fill="#C98A52"/>
+<rect x="210" y="98" width="24" height="10" rx="5" fill="#A86A3D"/>
+<ellipse cx="120" cy="100" rx="86" ry="31" fill="#E3A548"/>
+<ellipse cx="120" cy="99" rx="77" ry="26" fill="#D9442F"/>
+<ellipse cx="120" cy="98" rx="73" ry="23" fill="#FFD45C"/>
+<path d="M120 99 L195 86 A75 25 0 0 1 195 112 Z" fill="#C2361F"/>
+<g fill="#C7392A"><ellipse cx="88" cy="92" rx="8" ry="4.5"/><ellipse cx="112" cy="110" rx="8" ry="4.5"/><ellipse cx="78" cy="106" rx="8" ry="4.5"/><ellipse cx="134" cy="86" rx="8" ry="4.5"/><ellipse cx="104" cy="82" rx="7" ry="4"/></g>
+<g fill="#3E8E41"><path d="M96 100 q5 -6 10 0 q-5 6 -10 0z"/><path d="M122 98 q5 -6 10 0 q-5 6 -10 0z"/><path d="M70 96 q5 -6 10 0 q-5 6 -10 0z"/></g>
+<g fill="#2B2B2B"><circle cx="146" cy="104" r="2.6"/><circle cx="92" cy="114" r="2.6"/><circle cx="118" cy="88" r="2.6"/></g>
+<g class="float">
+<g class="stretch"><path d="M168 84 v16 M176 82 v18 M184 84 v14" stroke="#FFE08A" stroke-width="3" stroke-linecap="round"/></g>
+<path d="M136 72 L212 58 A75 25 0 0 1 212 84 Z" fill="#FFD45C"/>
+<path d="M212 58 A75 25 0 0 1 212 84" stroke="#E3A548" stroke-width="8" stroke-linecap="round" fill="none"/>
+<ellipse cx="186" cy="70" rx="6" ry="3.4" fill="#C7392A"/><ellipse cx="166" cy="74" rx="5" ry="3" fill="#C7392A"/>
+</g>
+<path class="steam" d="M80 34 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path class="steam s2" d="M120 34 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
 </svg>

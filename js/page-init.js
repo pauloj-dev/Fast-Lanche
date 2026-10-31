@@ -671,10 +671,10 @@ async function initPerfil() {
     setupAdmin();
 
     // Renderizar perfil
-    renderProfilePage();
+    renderProfilePage(getInitials);
 }
 
-function renderProfilePage() {
+function renderProfilePage(getInitials) {
     const profile = getProfileFromStorage();
 
     // Preencher dados pessoais

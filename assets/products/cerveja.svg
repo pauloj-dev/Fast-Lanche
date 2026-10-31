@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Cerveja gelada">
+<title>Cerveja gelada</title>
+<style>
+.float{animation:float 3.2s ease-in-out infinite}
+.float-slow{animation:float 4.4s ease-in-out infinite}
+.shadow{animation:shadow 3.2s ease-in-out infinite;transform-origin:120px 148px}
+.steam{animation:steam 2.8s ease-in-out infinite;opacity:0}
+.s2{animation-delay:.9s}.s3{animation-delay:1.8s}
+.bubble{animation:bubble 2.4s ease-in infinite;opacity:0}
+.b2{animation-delay:.6s}.b3{animation-delay:1.2s}.b4{animation-delay:1.8s}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.wobble{animation:wobble 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.drip{animation:drip 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.stretch{animation:stretch 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.bob1{animation:float 2.6s ease-in-out infinite}.bob2{animation:float 2.6s ease-in-out .4s infinite}.bob3{animation:float 2.6s ease-in-out .8s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.16}50%{transform:scaleX(.9);opacity:.1}}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes wave{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+@keyframes drip{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes stretch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.25)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.steam,.bubble{opacity:.55}}
+</style>
+<ellipse class="shadow" cx="120" cy="148" rx="74" ry="7" fill="#3B2414"/>
+<g class="float-slow">
+<path d="M150 66 h12 a16 16 0 0 1 0 44 h-12" stroke="#CFE3EA" stroke-width="9" fill="none"/>
+<path d="M84 44 H154 V136 C154 141 150 144 145 144 H93 C88 144 84 141 84 136 Z" fill="#F4A623"/>
+<path d="M84 44 H154 V136 C154 141 150 144 145 144 H93 C88 144 84 141 84 136 Z" fill="none" stroke="#CFE3EA" stroke-width="4"/>
+<path d="M96 56 V132" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".45"/>
+<circle class="bubble" cx="110" cy="128" r="2.2" fill="#FFE7A6"/>
+<circle class="bubble b2" cx="119" cy="120" r="3.2" fill="#FFE7A6"/>
+<circle class="bubble b3" cx="128" cy="128" r="2.2" fill="#FFE7A6"/>
+<circle class="bubble b4" cx="137" cy="120" r="3.2" fill="#FFE7A6"/>
+<g class="wobble"><path d="M80 48 C74 34 92 26 100 34 C104 22 126 22 130 32 C138 24 160 32 156 48 C160 56 150 58 146 54 L146 64 C146 68 140 68 140 64 V54 H84 Z" fill="#FFFDF5"/></g>
+</g>
+</svg>

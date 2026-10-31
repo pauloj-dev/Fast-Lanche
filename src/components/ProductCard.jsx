@@ -1,24 +1,26 @@
+import { useEffect, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
-// Importados pelo Vite: o caminho fica correto tanto em /react/ (dev) quanto em dist/ (build).
-import hamburguer from '../../assets/products/hamburguer.svg';
-import pizza from '../../assets/products/pizza.svg';
-import combo from '../../assets/products/combo.svg';
-import bebida from '../../assets/products/bebida.svg';
-import sobremesa from '../../assets/products/sobremesa.svg';
-import porcao from '../../assets/products/porcao.svg';
+import { ProductImage } from './ProductImage.jsx';
+import { formatCurrency } from '../utils/format.js';
 
-const images = {
-  'Hambúrgueres': hamburguer, Pizzas: pizza, Combos: combo,
-  Bebidas: bebida, Sobremesas: sobremesa, 'Porções': porcao
-};
+const ADDED_FEEDBACK_MS = 1200;
 
 export function ProductCard({ item }) {
   const { add } = useCart();
+  const [added, setAdded] = useState(false);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  function handleAdd() {
+    add(item);
+    setAdded(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setAdded(false), ADDED_FEEDBACK_MS);
+  }
   return <article className="menu-item" data-category={item.category} data-product-id={item.id}>
-    <div className="menu-item-visual" aria-hidden="true"><img className="menu-item-img" src={images[item.category] || hamburguer} alt="" loading="lazy"/></div>
+    <div className="menu-item-visual" aria-hidden="true"><ProductImage item={item} className="menu-item-img"/></div>
     <p className="section-kicker">{item.category}</p><h3>{item.name}</h3><p>{item.description}</p>
-    <div className="menu-item-footer"><span className="price">{item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-      <div className="menu-item-actions"><button className="add-to-cart" type="button" onClick={() => add(item)} aria-label={`Adicionar ${item.name} ao carrinho`}>Adicionar ao carrinho</button></div>
+    <div className="menu-item-footer"><span className="price">{formatCurrency(item.price)}</span>
+      <div className="menu-item-actions"><button className={`add-to-cart${added ? ' is-added' : ''}`} type="button" onClick={handleAdd} aria-label={`Adicionar ${item.name} ao carrinho`}>{added ? 'Adicionado' : 'Adicionar'}</button></div>
     </div>
   </article>;
 }

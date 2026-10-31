@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Calabresa acebolada">
+<title>Calabresa acebolada</title>
+<style>
+.float{animation:float 3.2s ease-in-out infinite}
+.float-slow{animation:float 4.4s ease-in-out infinite}
+.shadow{animation:shadow 3.2s ease-in-out infinite;transform-origin:120px 148px}
+.steam{animation:steam 2.8s ease-in-out infinite;opacity:0}
+.s2{animation-delay:.9s}.s3{animation-delay:1.8s}
+.bubble{animation:bubble 2.4s ease-in infinite;opacity:0}
+.b2{animation-delay:.6s}.b3{animation-delay:1.2s}.b4{animation-delay:1.8s}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.wobble{animation:wobble 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.drip{animation:drip 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.stretch{animation:stretch 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.bob1{animation:float 2.6s ease-in-out infinite}.bob2{animation:float 2.6s ease-in-out .4s infinite}.bob3{animation:float 2.6s ease-in-out .8s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.16}50%{transform:scaleX(.9);opacity:.1}}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes wave{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+@keyframes drip{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes stretch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.25)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.steam,.bubble{opacity:.55}}
+</style>
+<ellipse class="shadow" cx="120" cy="148" rx="74" ry="7" fill="#3B2414"/>
+<ellipse cx="120" cy="120" rx="92" ry="28" fill="#2F2F33"/><ellipse cx="120" cy="116" rx="84" ry="24" fill="#4A4A50"/>
+<rect x="204" y="110" width="34" height="11" rx="5.5" fill="#2F2F33"/>
+<g class="float-slow">
+<ellipse cx="88" cy="110" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="88" cy="108.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="84" cy="108" r="1.6"/><circle cx="92" cy="110" r="1.6"/><circle cx="89" cy="106" r="1.3"/></g><ellipse cx="118" cy="118" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="118" cy="116.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="114" cy="116" r="1.6"/><circle cx="122" cy="118" r="1.6"/><circle cx="119" cy="114" r="1.3"/></g><ellipse cx="150" cy="110" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="150" cy="108.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="146" cy="108" r="1.6"/><circle cx="154" cy="110" r="1.6"/><circle cx="151" cy="106" r="1.3"/></g><ellipse cx="104" cy="100" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="104" cy="98.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="100" cy="98" r="1.6"/><circle cx="108" cy="100" r="1.6"/><circle cx="105" cy="96" r="1.3"/></g><ellipse cx="136" cy="98" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="136" cy="96.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="132" cy="96" r="1.6"/><circle cx="140" cy="98" r="1.6"/><circle cx="137" cy="94" r="1.3"/></g><ellipse cx="166" cy="120" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="166" cy="118.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="162" cy="118" r="1.6"/><circle cx="170" cy="120" r="1.6"/><circle cx="167" cy="116" r="1.3"/></g><ellipse cx="76" cy="122" rx="15" ry="9" fill="#9C2F1F"/><ellipse cx="76" cy="120.5" rx="12" ry="7" fill="#C94A33"/><g fill="#F4C7A1"><circle cx="72" cy="120" r="1.6"/><circle cx="80" cy="122" r="1.6"/><circle cx="77" cy="118" r="1.3"/></g>
+<g fill="none" stroke-width="3.5" stroke-linecap="round"><path d="M96 92 q14 -10 26 0" stroke="#F3E5F5"/><path d="M128 108 q12 -8 22 2" stroke="#E1BEE7"/><path d="M80 104 q8 -8 18 -2" stroke="#F3E5F5"/><path d="M146 92 q10 -8 20 0" stroke="#CE93D8"/></g>
+<g fill="#5DBB4A"><circle cx="112" cy="108" r="2"/><circle cx="142" cy="116" r="2"/><circle cx="96" cy="118" r="2"/><circle cx="158" cy="104" r="2"/></g>
+</g>
+<path class="steam" d="M90 70 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path class="steam s2" d="M120 70 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path class="steam s3" d="M150 70 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+</svg>

@@ -1,35 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160">
-  <defs>
-    <style>
-      @keyframes wiggle { 0%,100% { transform: rotate(0deg) } 25% { transform: rotate(2deg) } 75% { transform: rotate(-2deg) } }
-      @keyframes cherryBounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
-      .wiggle { animation: wiggle 3s ease-in-out infinite; transform-origin: center }
-      .cherry { animation: cherryBounce 1.5s ease-in-out infinite }
-    </style>
-  </defs>
-  <!-- Prato -->
-  <ellipse cx="120" cy="135" rx="90" ry="10" fill="#E0E0E0"/>
-  <ellipse cx="120" cy="133" rx="85" ry="8" fill="#F5F5F5"/>
-  <!-- Base do pudim / bolo -->
-  <path d="M65 130 Q65 60 120 50 Q175 60 175 130 Z" fill="#8D6E63"/>
-  <path d="M65 130 Q65 60 120 50 Q175 60 175 130 Z" fill="url(#pudimGrad)" opacity=".6"/>
-  <defs>
-    <linearGradient id="pudimGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#D7CCC8"/>
-      <stop offset="100%" stop-color="#8D6E63"/>
-    </linearGradient>
-  </defs>
-  <!-- Calda de caramelo -->
-  <path d="M70 125 Q80 115 100 120 Q120 128 140 118 Q160 112 170 122" fill="#BF360C" opacity=".8"/>
-  <path d="M75 128 Q90 122 110 126 Q130 132 150 124 Q165 118 172 126" fill="#E65100" opacity=".6"/>
-  <!-- Cereja -->
-  <circle cx="100" cy="58" r="7" fill="#D32F2F" class="cherry"/>
-  <circle cx="100" cy="56" r="3" fill="#EF5350" opacity=".6" class="cherry"/>
-  <!-- Haste da cereja -->
-  <path d="M100 51 Q105 40 115 45" stroke="#33691E" stroke-width="1.5" fill="none"/>
-  <!-- Calda escorrendo -->
-  <path d="M80 124 Q82 140 78 150" stroke="#BF360C" stroke-width="3" fill="none" opacity=".6"/>
-  <path d="M140 122 Q142 138 138 148" stroke="#BF360C" stroke-width="3" fill="none" opacity=".6" style="animation-delay:.5s"/>
-  <!-- Brilho -->
-  <ellipse cx="130" cy="70" rx="30" ry="15" fill="#FFFFFF" opacity=".12"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Sorvete sundae">
+<title>Sorvete sundae</title>
+<style>
+.float{animation:float 3.2s ease-in-out infinite}
+.float-slow{animation:float 4.4s ease-in-out infinite}
+.shadow{animation:shadow 3.2s ease-in-out infinite;transform-origin:120px 148px}
+.steam{animation:steam 2.8s ease-in-out infinite;opacity:0}
+.s2{animation-delay:.9s}.s3{animation-delay:1.8s}
+.bubble{animation:bubble 2.4s ease-in infinite;opacity:0}
+.b2{animation-delay:.6s}.b3{animation-delay:1.2s}.b4{animation-delay:1.8s}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.wobble{animation:wobble 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.drip{animation:drip 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.stretch{animation:stretch 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.bob1{animation:float 2.6s ease-in-out infinite}.bob2{animation:float 2.6s ease-in-out .4s infinite}.bob3{animation:float 2.6s ease-in-out .8s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.16}50%{transform:scaleX(.9);opacity:.1}}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes wave{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+@keyframes drip{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes stretch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.25)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.steam,.bubble{opacity:.55}}
+</style>
+<ellipse class="shadow" cx="120" cy="148" rx="74" ry="7" fill="#3B2414"/>
+<g class="float-slow">
+<path d="M78 84 H162 C162 110 144 122 120 122 C96 122 78 110 78 84 Z" fill="#E8F4F8" opacity=".75" stroke="#B8D3DC" stroke-width="2.5"/>
+<rect x="114" y="122" width="12" height="16" fill="#B8D3DC"/><ellipse cx="120" cy="140" rx="24" ry="5" fill="#B8D3DC"/>
+<circle cx="98" cy="78" r="18" fill="#FFF3D6"/><circle cx="142" cy="78" r="18" fill="#F7A1C4"/><circle cx="120" cy="62" r="20" fill="#7B4A2E"/>
+<path class="drip" d="M104 58 C110 48 130 48 136 58 C136 64 132 66 130 62 C128 70 124 72 122 64 C120 72 114 70 114 62 C110 66 104 64 104 58 Z" fill="#4A2617"/>
+<rect x="148" y="30" width="10" height="44" rx="2" fill="#E9B872" transform="rotate(20 153 52)"/>
+<path d="M150 36 l8 4 M149 46 l8 4 M147 56 l8 4" stroke="#C98F45" stroke-width="1.5" transform="rotate(20 153 52)"/>
+<circle cx="120" cy="40" r="7" fill="#D62828"/><path d="M120 33 q3 -9 10 -10" stroke="#5D4037" stroke-width="2" fill="none"/>
+<circle cx="118" cy="38" r="1.8" fill="#FFFFFF" opacity=".7"/>
+<g fill="#FFC700"><rect x="94" y="72" width="4" height="2" rx="1"/><rect x="138" y="70" width="4" height="2" rx="1" transform="rotate(40 140 71)"/><rect x="104" y="82" width="4" height="2" rx="1" transform="rotate(-30 106 83)"/></g>
+</g>
 </svg>

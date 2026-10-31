@@ -3,16 +3,8 @@ import { CUSTOMIZATION_TYPES } from './constants.js';
 import { formatCurrency } from './ui.js';
 import { addUnavailableOverlay } from './ux.js';
 import { resolveAssetPath } from './base-path.js';
+import { getProductImagePath } from './product-images.js';
 
-// Mapeamento de categorias para imagens SVG animadas
-const CATEGORY_IMAGES = {
-    'Hambúrgueres': 'assets/products/hamburguer.svg',
-    'Pizzas': 'assets/products/pizza.svg',
-    'Combos': 'assets/products/combo.svg',
-    'Bebidas': 'assets/products/bebida.svg',
-    'Sobremesas': 'assets/products/sobremesa.svg',
-    'Porções': 'assets/products/porcao.svg'
-};
 
 const menuItems = [
     // =========================================================================
@@ -614,8 +606,8 @@ function createMenuVisual(item) {
 
     const img = document.createElement('img');
     img.className = 'menu-item-img';
-    img.src = resolveAssetPath(CATEGORY_IMAGES[item.category] || 'assets/products/hamburguer.svg');
-    img.alt = `${item.category} - Fast Lanche`;
+    img.src = resolveAssetPath(getProductImagePath(item));
+    img.alt = '';
     img.loading = 'lazy';
 
     visual.appendChild(img);
@@ -645,7 +637,7 @@ function createMenuCard(item) {
     button.className = 'add-to-cart';
     button.type = 'button';
     button.dataset.id = String(item.id);
-    button.textContent = 'Adicionar ao carrinho';
+    button.textContent = 'Adicionar';
     button.setAttribute('aria-label', `Adicionar ${item.name} ao carrinho`);
 
     actions.appendChild(button);

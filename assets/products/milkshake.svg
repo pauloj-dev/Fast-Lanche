@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Milk shake de morango">
+<title>Milk shake de morango</title>
+<style>
+.float{animation:float 3.2s ease-in-out infinite}
+.float-slow{animation:float 4.4s ease-in-out infinite}
+.shadow{animation:shadow 3.2s ease-in-out infinite;transform-origin:120px 148px}
+.steam{animation:steam 2.8s ease-in-out infinite;opacity:0}
+.s2{animation-delay:.9s}.s3{animation-delay:1.8s}
+.bubble{animation:bubble 2.4s ease-in infinite;opacity:0}
+.b2{animation-delay:.6s}.b3{animation-delay:1.2s}.b4{animation-delay:1.8s}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.wobble{animation:wobble 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.drip{animation:drip 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.stretch{animation:stretch 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.bob1{animation:float 2.6s ease-in-out infinite}.bob2{animation:float 2.6s ease-in-out .4s infinite}.bob3{animation:float 2.6s ease-in-out .8s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.16}50%{transform:scaleX(.9);opacity:.1}}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes wave{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+@keyframes drip{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes stretch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.25)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.steam,.bubble{opacity:.55}}
+</style>
+<ellipse class="shadow" cx="120" cy="148" rx="74" ry="7" fill="#3B2414"/>
+<g class="float-slow">
+<path d="M86 52 H154 L140 128 H100 Z" fill="#F7A1C4"/>
+<path d="M86 52 H154 L151 66 H89 Z" fill="#F48FB1"/>
+<rect x="96" y="128" width="48" height="8" rx="3" fill="#E8F4F8" stroke="#B8D3DC" stroke-width="2"/>
+<rect x="114" y="136" width="12" height="6" fill="#B8D3DC"/>
+<g class="wobble"><path d="M84 54 C78 40 96 30 104 38 C104 22 132 20 136 34 C146 26 164 40 154 54 Z" fill="#FFFFFF"/>
+<path d="M98 44 C104 40 112 40 118 44" stroke="#F1E7E9" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="124" cy="24" r="8" fill="#D62828"/><path d="M124 16 q4 -10 12 -12" stroke="#5D4037" stroke-width="2" fill="none"/>
+<circle cx="121" cy="21" r="2" fill="#FFFFFF" opacity=".7"/></g>
+<rect x="138" y="2" width="7" height="58" rx="3.5" fill="#7FD1C7" transform="rotate(16 141 31)"/>
+<g fill="#6D3B1F" transform="translate(0 8)"><rect x="98" y="38" width="5" height="2" rx="1"/><rect x="132" y="42" width="5" height="2" rx="1" transform="rotate(30 134 43)"/><rect x="116" y="47" width="5" height="2" rx="1" transform="rotate(-20 118 48)"/></g>
+</g>
+</svg>

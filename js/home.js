@@ -2,6 +2,7 @@
 // Apresentacao breve do restaurante, produto em destaque e redirecionamentos.
 import { formatCurrency } from './ui.js';
 import { resolveAssetPath, resolvePagePath } from './base-path.js';
+import { CATEGORY_IMAGES, getProductImagePath } from './product-images.js';
 
 // =========================================================================
 // CONSTANTES
@@ -9,17 +10,9 @@ import { resolveAssetPath, resolvePagePath } from './base-path.js';
 export const FEATURED_PRODUCT_ID = 14; // 'Combo Fast' - produto destaque da casa
 export const HERO_FEATURE_SELECTOR = '.hero-feature';
 
-const CATEGORY_IMAGES = {
-    'Hambúrgueres': 'assets/products/hamburguer.svg',
-    'Pizzas': 'assets/products/pizza.svg',
-    'Combos': 'assets/products/combo.svg',
-    'Bebidas': 'assets/products/bebida.svg',
-    'Sobremesas': 'assets/products/sobremesa.svg',
-    'Porções': 'assets/products/porcao.svg'
-};
 
 function getCategoryImage(category) {
-    return CATEGORY_IMAGES[category] || 'assets/products/hamburguer.svg';
+    return `assets/products/${CATEGORY_IMAGES[category] || 'hamburguer'}.svg`;
 }
 
 // =========================================================================
@@ -77,7 +70,7 @@ function createHeroFeatureContent(product, openCustomizationModal) {
 
     const img = document.createElement('img');
     img.className = 'hero-feature-img';
-    img.src = resolveAssetPath(getCategoryImage(product.category));
+    img.src = resolveAssetPath(getProductImagePath(product));
     img.alt = `${product.name} - Fast Lanche`;
     img.loading = 'lazy';
     visual.appendChild(img);

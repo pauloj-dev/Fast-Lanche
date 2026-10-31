@@ -2,6 +2,7 @@
 import { isOutOfStock, getAvailableQuantity } from './inventory.js';
 import { createEnhancedCartEmptyState, createFreeDeliveryBar } from './ux.js';
 import { resolveAssetPath } from './base-path.js';
+import { getProductImagePath } from './product-images.js';
 
 // O módulo também é consumido por testes e ferramentas sem DOM.
 const dom = typeof document !== 'undefined' ? document : null;
@@ -14,14 +15,6 @@ const cartTotal = dom?.getElementById('cart-total') || null;
 const DELIVERY_FEE = 6;
 const FREE_DELIVERY_MINIMUM = 50;
 const CART_STORAGE_KEY = 'fastlanche_cart';
-const CATEGORY_IMAGES = {
-  'Hambúrgueres': 'assets/products/hamburguer.svg',
-  'Pizzas': 'assets/products/pizza.svg',
-  'Combos': 'assets/products/combo.svg',
-  'Bebidas': 'assets/products/bebida.svg',
-  'Sobremesas': 'assets/products/sobremesa.svg',
-  'Porções': 'assets/products/porcao.svg'
-};
 
 const cart = {
   items: [],
@@ -78,7 +71,7 @@ function getSerializableCart() {
       quantity: item.quantity,
       maxQuantity: item.maxQuantity,
       category: item.category || null,
-      image: item.image || (CATEGORY_IMAGES[item.category] || null),
+      image: item.image || getProductImagePath(item),
       _customization: item._customization || null
     })),
     subtotal: cart.subtotal,
@@ -121,7 +114,7 @@ function normalizeStoredItem(item) {
     quantity: normalizeQuantity(Number(item.quantity), maxQuantity),
     maxQuantity,
     category: typeof item.category === 'string' ? item.category : null,
-    image: typeof item.image === 'string' ? item.image : (CATEGORY_IMAGES[item.category] || null),
+    image: typeof item.image === 'string' ? item.image : getProductImagePath(item),
     _customization: item._customization || null
   };
 }
@@ -190,7 +183,7 @@ function addToCart(item) {
       quantity: 1,
       maxQuantity: item.maxQuantity || 99,
       category: item.category || null,
-      image: typeof item.image === 'string' ? item.image : (CATEGORY_IMAGES[item.category] || null),
+      image: typeof item.image === 'string' ? item.image : getProductImagePath(item),
       _customization: itemCust
     });
   }

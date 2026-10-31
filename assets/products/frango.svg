@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Frango a passarinho">
+<title>Frango a passarinho</title>
+<style>
+.float{animation:float 3.2s ease-in-out infinite}
+.float-slow{animation:float 4.4s ease-in-out infinite}
+.shadow{animation:shadow 3.2s ease-in-out infinite;transform-origin:120px 148px}
+.steam{animation:steam 2.8s ease-in-out infinite;opacity:0}
+.s2{animation-delay:.9s}.s3{animation-delay:1.8s}
+.bubble{animation:bubble 2.4s ease-in infinite;opacity:0}
+.b2{animation-delay:.6s}.b3{animation-delay:1.2s}.b4{animation-delay:1.8s}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+.wobble{animation:wobble 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.drip{animation:drip 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.stretch{animation:stretch 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.bob1{animation:float 2.6s ease-in-out infinite}.bob2{animation:float 2.6s ease-in-out .4s infinite}.bob3{animation:float 2.6s ease-in-out .8s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.16}50%{transform:scaleX(.9);opacity:.1}}
+@keyframes steam{0%{opacity:0;transform:translateY(8px)}35%{opacity:.75}100%{opacity:0;transform:translateY(-16px)}}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes wave{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+@keyframes drip{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes stretch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.25)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.steam,.bubble{opacity:.55}}
+</style>
+<ellipse class="shadow" cx="120" cy="148" rx="74" ry="7" fill="#3B2414"/>
+<g class="bob1"><g transform="translate(92 108) rotate(-22)"><rect x="-4" y="-48" width="8" height="26" rx="4" fill="#FFF3E0"/><circle cx="-5" cy="-50" r="6" fill="#FFF3E0"/><circle cx="5" cy="-50" r="6" fill="#FFF3E0"/><path d="M-20 -14 C-24 -34 24 -34 20 -14 C18 6 -18 6 -20 -14 Z" fill="#C8752B"/><path d="M-12 -20 q6 -8 14 -6" stroke="#E9A04F" stroke-width="4" stroke-linecap="round" fill="none"/><g fill="#9E5418"><circle cx="-8" cy="-8" r="1.8"/><circle cx="6" cy="-14" r="1.8"/><circle cx="2" cy="-2" r="1.8"/></g></g></g>
+<g class="bob3"><g transform="translate(148 108) rotate(22)"><rect x="-4" y="-48" width="8" height="26" rx="4" fill="#FFF3E0"/><circle cx="-5" cy="-50" r="6" fill="#FFF3E0"/><circle cx="5" cy="-50" r="6" fill="#FFF3E0"/><path d="M-20 -14 C-24 -34 24 -34 20 -14 C18 6 -18 6 -20 -14 Z" fill="#C8752B"/><path d="M-12 -20 q6 -8 14 -6" stroke="#E9A04F" stroke-width="4" stroke-linecap="round" fill="none"/><g fill="#9E5418"><circle cx="-8" cy="-8" r="1.8"/><circle cx="6" cy="-14" r="1.8"/><circle cx="2" cy="-2" r="1.8"/></g></g></g>
+<g class="bob2"><g transform="translate(120 96) rotate(0)"><rect x="-4" y="-48" width="8" height="26" rx="4" fill="#FFF3E0"/><circle cx="-5" cy="-50" r="6" fill="#FFF3E0"/><circle cx="5" cy="-50" r="6" fill="#FFF3E0"/><path d="M-20 -14 C-24 -34 24 -34 20 -14 C18 6 -18 6 -20 -14 Z" fill="#C8752B"/><path d="M-12 -20 q6 -8 14 -6" stroke="#E9A04F" stroke-width="4" stroke-linecap="round" fill="none"/><g fill="#9E5418"><circle cx="-8" cy="-8" r="1.8"/><circle cx="6" cy="-14" r="1.8"/><circle cx="2" cy="-2" r="1.8"/></g></g></g>
+<path d="M58 104 H182 L172 144 H68 Z" fill="#E63946"/>
+<path d="M58 104 H182 L179 114 H61 Z" fill="#C92A37"/>
+<path d="M84 104 L90 144 M108 104 l2 40 M132 104 l-2 40 M156 104 l-6 40" stroke="#FFFFFF" stroke-width="7" opacity=".9"/>
+<g fill="#5DBB4A"><path d="M60 102 q8 -10 16 -2 q-8 6 -16 2z"/><path d="M164 100 q10 -8 16 2 q-9 4 -16 -2z"/></g>
+<path class="steam" d="M104 40 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path class="steam s2" d="M136 40 q-6 -8 0 -16 q6 -8 0 -16" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+</svg>
