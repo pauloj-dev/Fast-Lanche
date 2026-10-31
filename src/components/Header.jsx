@@ -5,6 +5,8 @@ const links = [
   ['index.html', 'Home'], ['cardapio.html', 'Cardapio'],
   ['reservas.html', 'Reservas'], ['feedbacks.html', 'Feedbacks']
 ];
+// Login e Perfil ainda nao foram migrados (fases 36/37): apontam explicitamente para as paginas legadas.
+const LEGACY_PAGES = { login: '../pages-html/login.html', profile: '../pages-html/perfil.html' };
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -32,9 +34,9 @@ export function Header() {
       <nav className={`main-nav${open ? ' open' : ''}`} id="main-nav" aria-label="Navegacao principal">
         {links.map(([href, label]) => <a key={href} href={href} className={page === href ? 'active' : undefined} aria-current={page === href ? 'page' : undefined} onClick={() => setOpen(false)}>{label}</a>)}
       </nav>
-      <div id="profile-header-container" className="profile-header-container">{account.loggedIn && <a className="profile-avatar-btn" href="perfil.html" aria-label="Meu perfil" title={account.name}>{account.avatar ? <img className="profile-avatar-img" src={account.avatar} alt={account.name || 'Avatar do usuário'}/> : <span className="profile-avatar-initials">{account.initials}</span>}</a>}</div>
+      <div id="profile-header-container" className="profile-header-container">{account.loggedIn && <a className="profile-avatar-btn" href={LEGACY_PAGES.profile} aria-label="Meu perfil" title={account.name}>{account.avatar ? <img className="profile-avatar-img" src={account.avatar} alt={account.name || 'Avatar do usuário'}/> : <span className="profile-avatar-initials">{account.initials}</span>}</a>}</div>
       <div className="cart-header-container"><a className="cart-header-link" href="carrinho.html" aria-label="Ver carrinho" title="Carrinho"><span className="cart-header-icon">🛒</span><span className="cart-header-badge" id="cart-header-badge">{count}</span></a></div>
-      <div id="login-header-container" className="login-header-container">{!account.loggedIn && <a className="nav-link-btn login-header-btn" href="login.html" aria-label="Fazer login">Entrar</a>}</div>
+      <div id="login-header-container" className="login-header-container">{!account.loggedIn && <a className="nav-link-btn login-header-btn" href={LEGACY_PAGES.login} aria-label="Fazer login">Entrar</a>}</div>
     </div>
   </header>;
 }

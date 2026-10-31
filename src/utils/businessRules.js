@@ -12,15 +12,25 @@ export const calculateDeliveryFee = subtotal => (
 
 export const calculateTotal = (subtotal, deliveryFee) => Math.max(subtotal + deliveryFee, 0);
 
+// Cada linha do carrinho e identificada por `cartItemId` (mesmo contrato do js/cart.js legado):
+// o mesmo produto pode aparecer em linhas diferentes quando tem personalizacoes distintas.
 export function normalizeCart(items = []) {
-  const safeItems = items.filter(item => item && Number.isFinite(Number(item.id)) && Number.isFinite(Number(item.price)))
-    .map(item => ({
-      ...item,
-      id: Number(item.id),
-      price: Math.max(Number(item.price), 0),
-      quantity: Math.min(Math.max(Number(item.quantity) || 1, 1), Number(item.maxQuantity) || 99),
-      maxQuantity: Number(item.maxQuantity) || 99
-    }));
+  const usedLineIds = new Set();
+  const safeItems = (Array.isArray(items) ? items : []).filter(item => item && Number.isFinite(Number(item.id)) && Number.isFinite(Number(item.price)))
+    .map((item, index) => {
+      let cartItemId = typeof item.cartItemId === 'string' && item.cartItemId ? item.cartItemId : String(Number(item.id));
+      if (usedLineIds.has(cartItemId)) cartItemId = `${cartItemId}_${index}`;
+      usedLineIds.add(cartItemId);
+      const maxQuantity = Math.max(Math.floor(Number(item.maxQuantity)) || 99, 1);
+      return {
+        ...item,
+        cartItemId,
+        id: Number(item.id),
+        price: Math.max(Number(item.price), 0),
+        quantity: Math.min(Math.max(Math.floor(Number(item.quantity)) || 1, 1), maxQuantity),
+        maxQuantity
+      };
+    });
   const subtotal = calculateSubtotal(safeItems);
   const deliveryFee = calculateDeliveryFee(subtotal);
   return { items: safeItems, subtotal, deliveryFee, total: calculateTotal(subtotal, deliveryFee) };

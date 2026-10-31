@@ -6,7 +6,7 @@ let memoryCart = normalizeCart();
 export function loadCart() {
   try {
     const stored = window.localStorage.getItem(KEY);
-    if (stored) memoryCart = normalizeCart(JSON.parse(stored)?.items);
+    memoryCart = normalizeCart(stored ? JSON.parse(stored)?.items : []);
   } catch (error) {
     console.warn('LocalStorage indisponivel para o carrinho.', error);
   }

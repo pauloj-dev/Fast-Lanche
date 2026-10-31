@@ -26,7 +26,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 
 | Fase | Tema | Estado | Próximo resultado esperado |
 | --- | --- | --- | --- |
-| 35 | Checkout | Parcial | Comprovante React, fluxo de conclusão e modelo de pedido completo |
+| 35 | Checkout | Concluida | Comprovante React, fluxo de conclusão e modelo de pedido completo |
 | 36 | Login / Sign In | Pendente | Autenticação estática integrada ao shell React |
 | 37 | Perfil avançado | Pendente | Perfil React protegido, preferências e histórico |
 | 38 | Reservas avançadas | Parcial | Disponibilidade, pagamento simulado e confirmação |
@@ -91,7 +91,8 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 - Carrinho: `src/context/CartContext.jsx` e `src/services/cartService.js`.
 - Cardápio: `src/services/menuService.js` e `src/components/ProductCard.jsx`.
-- Pedido: `src/services/orderService.js`.
+- Pedido: `src/services/orderService.js`. A chave `fastlanche_orders` é compartilhada com o legado (admin, fila e acompanhamento): os status persistidos são os rótulos de `js/order-tracking.js` (`Pedido recebido`, `Pagamento confirmado`...) e pedidos de outras páginas são regravados sem alteração.
+- Linhas do carrinho: identificadas por `cartItemId` (mesmo contrato de `js/cart.js`), pois o mesmo produto pode ter linhas com personalizações diferentes.
 - Reserva: `src/services/bookingService.js`.
 - Feedback: `src/services/feedbackService.js`.
 - Sessão: chave `fastlanche_session`, atualmente lida por `src/services/authService.js` e pelo `Header`.
@@ -101,22 +102,22 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 # 3. IMPLEMENTAÇÃO PENDENTE
 
-## FASE 35 - CHECKOUT E COMPROVANTE (PARCIAL)
+## FASE 35 - CHECKOUT E COMPROVANTE (CONCLUIDA)
 
 ### Já entregue
 
 `src/pages/CheckoutPage.jsx` já exibe o resumo, pré-preenche dados disponíveis do perfil, valida o formulário, simula o pagamento, registra o pedido em `orderService` e limpa o carrinho.
 
-### Trabalho restante
+### Entregue nesta fase
 
-- Criar `src/pages/ReceiptPage.jsx` e o shell `react/receipt.html`.
-- Adicionar o shell ao `vite.config.js` e a página ao mapa de `src/App.jsx`.
-- Após um pedido aprovado, persistir apenas a referência necessária e redirecionar para o comprovante, em vez de depender somente de um modal.
-- Exibir no comprovante número do pedido, data, cliente, itens, personalizações, subtotal, entrega, total, pagamento e status.
-- Definir um contrato único de pedido em `src/services/orderService.js`, incluindo identificador, cliente, itens e status inicial.
-- Completar o endereço de entrega ou documentar o contrato reduzido atual; não misturar campos incompatíveis entre o formulário, a validação e o pedido salvo.
-- Tratar carrinho vazio, falha de persistência e reenvio do formulário com estados de carregamento e erro.
-- Cobrir o fluxo checkout -> pedido -> comprovante com testes.
+- Criado `src/pages/ReceiptPage.jsx` e o shell `react/receipt.html`.
+- Shell registrado no `vite.config.js` e pagina adicionada ao mapa de `src/App.jsx`.
+- Após um pedido aprovado, persiste apenas a referência necessária e redireciona para o comprovante.
+- O comprovante exibe número do pedido, data, cliente, itens, personalizações, subtotal, entrega, total, pagamento e status.
+- `src/services/orderService.js` define o contrato único de pedido, incluindo identificador, cliente, itens e status inicial.
+- O endereço de entrega usa o mesmo campo de texto no formulário, na validação e no pedido salvo.
+- Carrinho vazio, falha de persistência e reenvio do formulário possuem estados de carregamento e erro.
+- O fluxo checkout -> pedido -> comprovante possui testes de contrato e persistência.
 
 ### Critérios de aceite
 

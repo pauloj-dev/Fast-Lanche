@@ -4,9 +4,10 @@ import { normalizeCart } from '../utils/businessRules.js';
 export const getCart = loadCart;
 export const persistCart = saveCart;
 export function addProduct(cart, product) {
-  const items = [...cart.items];
-  const existing = items.find(item => item.id === product.id);
-  if (existing) existing.quantity = Math.min(existing.quantity + 1, existing.maxQuantity || product.maxQuantity || 99);
-  else items.push({ id: product.id, name: product.name, price: product.price, quantity: 1, maxQuantity: product.maxQuantity || 99, category: product.category });
+  // Produtos adicionados pelo React nao tem personalizacao: somam na linha sem `_customization`.
+  const existing = cart.items.find(item => item.id === product.id && !item._customization);
+  const items = existing
+    ? cart.items.map(item => item === existing ? { ...item, quantity: Math.min(item.quantity + 1, item.maxQuantity || product.maxQuantity || 99) } : item)
+    : [...cart.items, { cartItemId: `${product.id}_${Date.now().toString(36)}`, id: product.id, name: product.name, price: product.price, unitPrice: product.price, quantity: 1, maxQuantity: product.maxQuantity || 99, category: product.category, _customization: null }];
   return normalizeCart(items);
 }

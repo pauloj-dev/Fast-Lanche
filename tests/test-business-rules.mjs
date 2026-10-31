@@ -22,7 +22,7 @@ test('cart totals preserve the existing delivery threshold', () => {
 
 test('stored cart is normalized and quantity respects item maximum', () => {
   assert.deepEqual(normalizeCart([{ id: 1, name: 'Item', price: -2, quantity: 20, maxQuantity: 4 }]), {
-    items: [{ id: 1, name: 'Item', price: 0, quantity: 4, maxQuantity: 4 }],
+    items: [{ cartItemId: '1', id: 1, name: 'Item', price: 0, quantity: 4, maxQuantity: 4 }],
     subtotal: 0,
     deliveryFee: 0,
     total: 0
@@ -40,4 +40,15 @@ test('feedback validation and average rating are deterministic', () => {
   assert.deepEqual(validateFeedback({ name: 'Ana', rating: 5, comment: 'Muito bom mesmo' }), []);
   assert.equal(calculateAverageRating([{ rating: 5 }, { rating: 3 }]), 4);
   assert.equal(calculateAverageRating([]), 0);
+});
+
+test('cart lines keep legacy cartItemId and never share an id', () => {
+  const cart = normalizeCart([
+    { cartItemId: '1_abc', id: 1, price: 10, quantity: 1, _customization: { observation: 'Sem cebola' } },
+    { id: 1, price: 10, quantity: 2 },
+    { id: 1, price: 10, quantity: 1 }
+  ]);
+  assert.deepEqual(cart.items.map(item => item.cartItemId), ['1_abc', '1', '1_2']);
+  assert.equal(cart.items[0]._customization.observation, 'Sem cebola');
+  assert.equal(cart.subtotal, 40);
 });

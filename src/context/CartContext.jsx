@@ -1,20 +1,29 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { addProduct, getCart, persistCart } from '../services/cartService.js';
 import { normalizeCart } from '../utils/businessRules.js';
 
 const CartContext = createContext(null);
+const CART_STORAGE_KEY = 'fastlanche_cart';
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState(getCart);
-  const update = items => setCart(persistCart(normalizeCart(items)));
-  const value = useMemo(() => ({
-    cart,
-    add: product => setCart(persistCart(addProduct(cart, product))),
-    increment: id => update(cart.items.map(item => item.id === id ? { ...item, quantity: Math.min(item.quantity + 1, item.maxQuantity) } : item)),
-    decrement: id => update(cart.items.filter(item => item.id !== id || item.quantity > 1).map(item => item.id === id ? { ...item, quantity: item.quantity - 1 } : item)),
-    remove: id => update(cart.items.filter(item => item.id !== id)),
-    clear: () => update([])
-  }), [cart]);
+  // Mantem o carrinho sincronizado com outras abas (React ou paginas legadas).
+  useEffect(() => {
+    const sync = event => { if (event.key === CART_STORAGE_KEY || event.key === null) setCart(getCart()); };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+  const value = useMemo(() => {
+    const update = items => setCart(persistCart(normalizeCart(items)));
+    return {
+      cart,
+      add: product => setCart(persistCart(addProduct(cart, product))),
+      increment: lineId => update(cart.items.map(item => item.cartItemId === lineId ? { ...item, quantity: Math.min(item.quantity + 1, item.maxQuantity) } : item)),
+      decrement: lineId => update(cart.items.filter(item => item.cartItemId !== lineId || item.quantity > 1).map(item => item.cartItemId === lineId ? { ...item, quantity: item.quantity - 1 } : item)),
+      remove: lineId => update(cart.items.filter(item => item.cartItemId !== lineId)),
+      clear: () => update([])
+    };
+  }, [cart]);
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 

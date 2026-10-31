@@ -9,17 +9,18 @@ import { CartPage } from './pages/CartPage.jsx';
 import { CheckoutPage } from './pages/CheckoutPage.jsx';
 import { BookingPage } from './pages/BookingPage.jsx';
 import { FeedbackPage } from './pages/FeedbackPage.jsx';
+import { ReceiptPage } from './pages/ReceiptPage.jsx';
 
 const pages = {
   'index.html': HomePage, 'cardapio.html': MenuPage, 'carrinho.html': CartPage,
-  'checkout.html': CheckoutPage, 'reservas.html': BookingPage, 'feedbacks.html': FeedbackPage
+  'checkout.html': CheckoutPage, 'receipt.html': ReceiptPage, 'reservas.html': BookingPage, 'feedbacks.html': FeedbackPage
 };
 
 export function App() {
   const page = location.pathname.split('/').pop() || 'index.html';
   const Page = pages[page] || HomePage;
   useEffect(() => {
-    const titles = { 'index.html': 'Home', 'cardapio.html': 'Cardapio', 'carrinho.html': 'Carrinho', 'checkout.html': 'Checkout', 'reservas.html': 'Reservas', 'feedbacks.html': 'Feedbacks' };
+    const titles = { 'index.html': 'Home', 'cardapio.html': 'Cardapio', 'carrinho.html': 'Carrinho', 'checkout.html': 'Checkout', 'receipt.html': 'Comprovante', 'reservas.html': 'Reservas', 'feedbacks.html': 'Feedbacks' };
     document.title = `Fast Lanche - ${titles[page] || 'Home'}`;
   }, [page]);
   return <CartProvider><ModalProvider><Header/><Page/><Footer/><ModalHost/></ModalProvider></CartProvider>;

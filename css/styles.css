@@ -5303,3 +5303,66 @@ button:disabled .spinner {
   opacity: .55;
   cursor: not-allowed;
 }
+
+/* FASE 35 - Comprovante React */
+.receipt-page-container {
+  max-width: 820px;
+}
+
+.receipt-page-card {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--cinza-200);
+  border-radius: var(--radius);
+  padding: clamp(1rem, 3vw, 2rem);
+  background: var(--branco);
+  box-shadow: var(--shadow);
+}
+
+.receipt-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .75rem;
+  margin-top: var(--space-3);
+}
+
+.checkout-empty-state,
+.receipt-empty {
+  margin-bottom: var(--space-3);
+}
+
+@media (max-width: 480px) {
+  .receipt-page-actions .button {
+    width: 100%;
+  }
+
+  .receipt-info-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .15rem;
+  }
+
+  .receipt-info-value {
+    max-width: 100%;
+    text-align: left;
+  }
+}
+
+@media print {
+  .site-header,
+  .site-footer,
+  .receipt-page-actions,
+  .section-heading > .receipt-status-badge {
+    display: none !important;
+  }
+
+  .receipt-page-section {
+    padding: 0;
+  }
+
+  .receipt-page-card {
+    border: 0;
+    box-shadow: none;
+  }
+}
