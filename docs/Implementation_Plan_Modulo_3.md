@@ -30,7 +30,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 36 | Login / Sign In | Concluída | Autenticação estática integrada ao shell React |
 | 37 | Perfil avançado | Concluída | Perfil React protegido, preferências e histórico |
 | 38 | Reservas avançadas | Concluída | Disponibilidade, pagamento simulado e confirmação |
-| 39 | Feedbacks avançados | Parcial | Feedback vinculado a produtos com busca e filtros |
+| 39 | Feedbacks avançados | Concluída | Feedback vinculado a produtos com busca e filtros |
 | 40 | Segurança | Parcial | Validação e sanitização compartilhadas nos fluxos React |
 | 41 | Otimização e refinamento | Parcial | Serviços, estados de UI e convenções React consistentes |
 | 42 | Responsividade | Pendente | Validação visual da aplicação React em todos os breakpoints |
@@ -97,7 +97,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Pedido: `src/services/orderService.js`. A chave `fastlanche_orders` é compartilhada com o legado (admin, fila e acompanhamento): os status persistidos são os rótulos de `js/order-tracking.js` (`Pedido recebido`, `Pagamento confirmado`...) e pedidos de outras páginas são regravados sem alteração.
 - Linhas do carrinho: identificadas por `cartItemId` (mesmo contrato de `js/cart.js`), pois o mesmo produto pode ter linhas com personalizações diferentes.
 - Reserva: `src/services/bookingService.js` (`getAvailability`, `createBooking`, `getBooking`). A chave `fastlanche_bookings` é compartilhada com `js/booking.js`: reservas legadas (sem mesa) contam na capacidade e são regravadas sem alteração.
-- Feedback: `src/services/feedbackService.js`.
+- Feedback: `src/services/feedbackService.js` (`getFeedbacks`, `getReviewContext`, `publishFeedback`, `getEligibleProducts`). A chave `fastlanche_feedbacks` é compartilhada com o legado: avaliações antigas sem produtos aparecem como "avaliação geral" e são regravadas sem alteração.
 - Sessão e contas: `src/services/authService.js` é o único ponto que lê/grava `fastlanche_users`, `fastlanche_session` e `fastlanche_user_profile`; o `Header` usa `getAccount()`.
 - Perfil: `src/services/profileService.js` (validação, avatar, preferências, histórico e dados do checkout). Grava pela função `saveAccountProfile` do `authService`.
 - Checkout: `src/services/checkoutService.js` (`placeOrder`) concentra validação, pagamento simulado e gravação do pedido.
@@ -286,13 +286,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 39 - FEEDBACKS AVANÇADOS (PARCIAL)
+## FASE 39 - FEEDBACKS AVANÇADOS (CONCLUÍDA)
 
-### Já entregue
-
-`src/pages/FeedbackPage.jsx` já permite nota, comentário, média, persistência local e prevenção de repetição idêntica na sessão.
-
-### Trabalho restante
+### Escopo
 
 - Expandir o modelo de feedback para incluir `productIds` e nomes dos produtos avaliados.
 - Derivar a lista de produtos elegíveis a partir dos pedidos do usuário com status concluído/entregue.
@@ -301,6 +297,39 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Atualizar a média geral e a média por produto após cada publicação.
 - Sanitizar e limitar nome, comentário e metadados antes de persistir.
 - Definir o comportamento para usuário não logado (feedback geral ou exigência de login) e aplicá-lo de forma consistente.
+
+### Decisão: usuário não logado
+
+- **Ler é livre:** lista, busca, filtros e médias ficam disponíveis para todos.
+- **Publicar exige login e pelo menos um produto de pedido entregue da conta.**
+- **O nome publicado vem da conta**, e não de um campo livre, o que evita alguém se passar por outra pessoa.
+- **Sem login**, o formulário vira um convite "Entrar para avaliar".
+- **Avaliações antigas sem produto** continuam visíveis com o selo "Avaliação geral".
+
+### Entregue nesta fase
+
+- **Modelo:** `items` (pedido, produto e nome), `productIds`, `productNames`, `userProfileId` e `verified`. `normalizeFeedback` revalida nota (inteiro de 1 a 5), data e textos ao carregar, com limites de 80 caracteres para o nome, 1000 para o comentário e 10 produtos.
+- **Elegibilidade** (`getEligibleProducts`): considera só os itens de pedidos com status `Entregue` e `userProfileId` da conta. Cada par (pedido, produto) só pode ser avaliado uma vez. Antes de gravar, `publishFeedback` relê pedidos e avaliações, para pegar uma avaliação feita em outra aba.
+- **Regras puras** (`businessRules.js`): `getProductKey`, `summarizeRatings` (média e distribuição por estrela), `calculateProductAverages` e `filterFeedbacks` (busca sem acento por nome, comentário e produto, combinável com filtro de produto e de nota, e ordenação por mais recentes, melhor ou pior nota, sem alterar a lista original).
+- **Página** (`FeedbackPage.jsx`):
+  - Painel com a média geral, a distribuição clicável por estrela e os produtos mais avaliados com suas médias.
+  - Barra de busca com filtros de produto, nota e ordenação, mais a média do produto filtrado.
+  - Cards com selo "Compra verificada" e tags de produto clicáveis.
+  - Formulário com os produtos elegíveis agrupados por pedido, nota em estrelas e contador de caracteres.
+  - Recarrega quando outra aba grava.
+- **Página legada:** `pages-html/feedbacks.html` e `js/feedback.js` usam o mesmo service e as mesmas regras (renderização com `textContent`). As duas URLs mostram os mesmos dados e a mesma interface.
+- **Limpeza:** o adapter `src/services/storage/feedbackStorage.js` foi removido; a persistência ficou no service, como em reservas.
+
+### Evidência
+
+- **Testes:** `tests/test-feedback.mjs` tem 7 testes. Eles cobrem validação e limites, sanitização de registros antigos, elegibilidade só de pedidos entregues da conta, publicação sem login, sem produto ou com produto de outra conta, bloqueio da segunda avaliação do mesmo item, preservação de avaliações antigas, JSON corrompido, filtros e busca combinados sem alterar os dados, e médias geral e por produto determinísticas. `npm test`: 56/56.
+- **Navegador** (`npm run build` + `npm run preview`):
+  - O envio sem nota foi bloqueado; a avaliação válida com HTML no comentário foi guardada como texto.
+  - O formulário passou para "Tudo avaliado!" e a média foi de 4,0 para 4,3.
+  - Filtros de nota, busca, produto e ordenação combinados funcionaram.
+  - A página legada mostrou os mesmos dados e filtros.
+  - Deslogado, as duas páginas mostram o convite para entrar.
+  - Sem overflow em 375 px e sem erros no console.
 
 ### Critérios de aceite
 

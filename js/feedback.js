@@ -1,286 +1,312 @@
-// feedback.js - camada de dados e persistencia de avaliacoes
-import { openModal, closeModal, showToast } from './ui.js';
-import { validateFeedbackInput } from './security.js';
+// feedback.js - avaliacoes da pagina legada (pages-html/feedbacks.html).
+// Usa o mesmo service e as mesmas regras da pagina React (src/): elegibilidade por pedido entregue, busca, filtros
+// e medias sao identicos nas duas URLs. Todo dado do usuario e renderizado com textContent.
+import { showToast } from './ui.js';
+import { getFeedbacks, getReviewContext, publishFeedback } from '../src/services/feedbackService.js';
+import {
+  FEEDBACK_LIMITS, FEEDBACK_SORTS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
+} from '../src/utils/businessRules.js';
+import { formatDateTime } from '../src/utils/format.js';
 
-const FEEDBACKS_STORAGE_KEY = 'fastlanche_feedbacks';
+const RATING_LABELS = { 1: 'Péssimo', 2: 'Ruim', 3: 'Regular', 4: 'Muito bom', 5: 'Excelente' };
+const EMPTY_FILTERS = { query: '', productKey: '', rating: 0, sort: 'recent' };
+const state = { list: [], context: { account: null, eligible: [] }, filters: { ...EMPTY_FILTERS }, form: { selected: [], rating: 0, comment: '' }, pending: false };
 
-const feedbacks = [];
+const formatAverage = value => value.toFixed(1).replace('.', ',');
+const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
-function isStorageAvailable() {
-  try {
-    return typeof window !== 'undefined' && Boolean(window.localStorage);
-  } catch (error) {
-    console.warn('LocalStorage indisponivel para feedbacks.', error);
-    return false;
+function el(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function button(className, text, onClick, pressed) {
+  const element = el('button', className, text);
+  element.type = 'button';
+  element.addEventListener('click', onClick);
+  if (pressed !== undefined) element.setAttribute('aria-pressed', String(pressed));
+  return element;
+}
+
+function fillStars(container, value) {
+  const rounded = Math.round(value);
+  container.setAttribute('aria-label', `${formatAverage(value)} de 5 estrelas`);
+  container.replaceChildren(...[1, 2, 3, 4, 5].map(star => {
+    const span = el('span', star <= rounded ? 'is-on' : '', '★');
+    span.setAttribute('aria-hidden', 'true');
+    return span;
+  }));
+  return container;
+}
+
+function setFilter(patch) {
+  Object.assign(state.filters, patch);
+  renderAll();
+}
+
+function renderOverview() {
+  const summary = summarizeRatings(state.list);
+  document.getElementById('average-rating').textContent = formatAverage(summary.average);
+  fillStars(document.getElementById('average-stars'), summary.average);
+  document.getElementById('review-count').textContent = plural(summary.count, 'avaliação', 'avaliações');
+
+  document.getElementById('review-distribution').replaceChildren(...summary.distribution.map(({ stars, count }) => {
+    const item = el('li');
+    const active = state.filters.rating === stars;
+    const control = button(active ? 'is-active' : '', '', () => setFilter({ rating: active ? 0 : stars }), active);
+    control.setAttribute('aria-label', `Filtrar ${stars} estrelas: ${plural(count, 'avaliação', 'avaliações')}`);
+    const bar = el('span', 'review-bar');
+    const fill = el('span');
+    fill.style.width = `${summary.count ? (count / summary.count) * 100 : 0}%`;
+    bar.appendChild(fill);
+    control.append(el('span', '', `${stars} ★`), bar, el('span', '', String(count)));
+    item.appendChild(control);
+    return item;
+  }));
+
+  const products = calculateProductAverages(state.list);
+  const top = document.getElementById('review-top-products');
+  if (!products.length) top.replaceChildren(el('p', 'booking-hint', 'Os produtos avaliados aparecem aqui.'));
+  else {
+    const list = el('ul');
+    products.slice(0, 4).forEach(product => {
+      const active = state.filters.productKey === product.key;
+      const control = button(active ? 'is-active' : '', '', () => setFilter({ productKey: active ? '' : product.key }), active);
+      control.append(el('span', 'review-top-name', product.name), el('span', 'review-top-score', `★ ${formatAverage(product.average)}`), el('small', '', plural(product.count, 'avaliação', 'avaliações')));
+      const item = el('li');
+      item.appendChild(control);
+      list.appendChild(item);
+    });
+    top.replaceChildren(list);
   }
+
+  const select = document.getElementById('feedback-product');
+  const all = el('option', '', 'Todos os produtos');
+  all.value = '';
+  select.replaceChildren(all, ...products.map(product => {
+    const option = el('option', '', `${product.name} (★ ${formatAverage(product.average)})`);
+    option.value = product.key;
+    return option;
+  }));
+  select.value = state.filters.productKey;
 }
 
-function saveFeedbacks() {
-  if (!isStorageAvailable()) return false;
+function renderList() {
+  const { filters } = state;
+  const visible = filterFeedbacks(state.list, filters);
+  const products = calculateProductAverages(state.list);
+  const selectedProduct = products.find(product => product.key === filters.productKey);
+  const filtered = Boolean(filters.query || filters.productKey || filters.rating);
 
-  try {
-    localStorage.setItem(FEEDBACKS_STORAGE_KEY, JSON.stringify(feedbacks));
-    return true;
-  } catch (error) {
-    console.warn('Nao foi possivel salvar os feedbacks.', error);
-    return false;
+  document.getElementById('review-chips').replaceChildren(...[0, 5, 4, 3, 2, 1].map(stars => button(
+    `booking-chip${filters.rating === stars ? ' is-active' : ''}`, stars ? `${stars} ★` : 'Todas as notas', () => setFilter({ rating: stars }), filters.rating === stars
+  )));
+
+  const results = document.getElementById('review-results');
+  results.replaceChildren(document.createTextNode(plural(visible.length, 'avaliação encontrada', 'avaliações encontradas')));
+  if (selectedProduct) {
+    const detail = el('span');
+    detail.append(document.createTextNode(' · '), el('strong', '', selectedProduct.name), document.createTextNode(`: média ★ ${formatAverage(selectedProduct.average)} em ${plural(selectedProduct.count, 'avaliação', 'avaliações')}`));
+    results.appendChild(detail);
   }
-}
+  if (filtered) results.appendChild(button('link-button', 'Limpar filtros', () => {
+    document.getElementById('feedback-search').value = '';
+    setFilter({ ...EMPTY_FILTERS, sort: filters.sort });
+  }));
 
-function isValidStoredFeedback(feedback) {
-  return (
-    feedback &&
-    Number.isFinite(Number(feedback.id)) &&
-    typeof feedback.name === 'string' &&
-    Number.isFinite(Number(feedback.rating)) &&
-    typeof feedback.comment === 'string' &&
-    typeof feedback.timestamp === 'string'
-  );
-}
-
-function normalizeStoredFeedback(feedback) {
-  return {
-    id: Number(feedback.id),
-    name: feedback.name,
-    rating: Math.min(Math.max(Number(feedback.rating) || 1, 1), 5),
-    comment: feedback.comment,
-    timestamp: feedback.timestamp
-  };
-}
-
-function loadFeedbacks() {
-  if (!isStorageAvailable()) return feedbacks;
-
-  try {
-    const storedFeedbacks = localStorage.getItem(FEEDBACKS_STORAGE_KEY);
-    if (!storedFeedbacks) return feedbacks;
-
-    const parsedFeedbacks = JSON.parse(storedFeedbacks);
-    const safeFeedbacks = Array.isArray(parsedFeedbacks) ? parsedFeedbacks : [];
-
-    feedbacks.splice(
-      0,
-      feedbacks.length,
-      ...safeFeedbacks.filter(isValidStoredFeedback).map(normalizeStoredFeedback)
-    );
-
-    return feedbacks;
-  } catch (error) {
-    console.warn('Nao foi possivel carregar os feedbacks.', error);
-    feedbacks.splice(0, feedbacks.length);
-    return feedbacks;
+  const list = document.getElementById('feedback-list');
+  if (!visible.length) {
+    const empty = el('div', 'review-empty');
+    empty.setAttribute('role', 'status');
+    const icon = el('span', '', '💬');
+    icon.setAttribute('aria-hidden', 'true');
+    empty.append(icon, el('strong', '', filtered ? 'Nenhuma avaliação com esses filtros' : 'Nenhuma avaliação ainda'), el('p', '', filtered ? 'Tente outra busca ou limpe os filtros.' : 'Seja o primeiro a contar como foi seu pedido.'));
+    list.replaceChildren(empty);
+    return;
   }
+  list.replaceChildren(...visible.map(item => {
+    const card = el('article', 'review-card');
+    const header = el('header');
+    const avatar = el('span', 'review-avatar', getInitials(item.name));
+    avatar.setAttribute('aria-hidden', 'true');
+    const who = el('div');
+    who.append(el('strong', '', item.name), el('small', '', formatDateTime(item.timestamp)));
+    header.append(avatar, who, el('span', item.verified ? 'review-badge' : 'review-badge is-general', item.verified ? '✓ Compra verificada' : 'Avaliação geral'));
+    card.append(header, fillStars(el('span', 'review-stars'), item.rating));
+    if (item.items.length) {
+      const tags = el('ul', 'review-tags');
+      item.items.forEach(product => {
+        const tag = el('li');
+        tag.appendChild(button('', product.name, () => setFilter({ productKey: getProductKey(product) })));
+        tags.appendChild(tag);
+      });
+      card.appendChild(tags);
+    }
+    card.appendChild(el('p', '', item.comment));
+    return card;
+  }));
 }
 
-function addFeedback(feedback) {
-  if (!feedback || !feedback.comment) return false;
+function renderGate(icon, title, text, href, label, variant) {
+  const card = el('div', 'review-form-card review-gate');
+  const iconEl = el('span', 'review-gate-icon', icon);
+  iconEl.setAttribute('aria-hidden', 'true');
+  const link = el('a', `button ${variant}`, label);
+  link.href = href;
+  card.append(iconEl, el('h2', '', title), el('p', '', text), link);
+  return card;
+}
 
-  feedbacks.push({
-    id: Date.now(),
-    name: feedback.name || 'Cliente',
-    rating: Math.min(Math.max(Number(feedback.rating) || 1, 1), 5),
-    comment: feedback.comment,
-    timestamp: new Date().toISOString()
+function renderForm() {
+  const aside = document.getElementById('review-aside');
+  const { account, eligible } = state.context;
+  if (!account) {
+    aside.replaceChildren(renderGate('🔒', 'Avalie seus pedidos', 'Para manter as avaliações confiáveis, só quem comprou pode avaliar. Entre na sua conta para avaliar os produtos dos seus pedidos entregues.', 'login.html', 'Entrar para avaliar', 'button-primary'));
+    return;
+  }
+  if (!eligible.some(item => !item.reviewed)) {
+    aside.replaceChildren(eligible.length
+      ? renderGate('🏆', 'Tudo avaliado!', 'Você já avaliou todos os produtos dos seus pedidos entregues. Obrigado!', 'cardapio.html', 'Ver cardápio', 'button-secondary')
+      : renderGate('📦', 'Nada para avaliar ainda', 'Assim que um pedido seu for entregue, os produtos aparecem aqui para avaliação.', 'cardapio.html', 'Ver cardápio', 'button-secondary'));
+    return;
+  }
+
+  const { form: draft } = state;
+  const form = el('form', 'review-form-card');
+  form.id = 'feedback-form';
+  form.noValidate = true;
+  const author = el('p', 'review-form-author', 'Publicando como ');
+  author.appendChild(el('strong', '', account.name));
+  form.append(el('h2', '', 'Avalie sua compra'), author);
+
+  const productsSet = el('fieldset', 'review-products');
+  productsSet.appendChild(el('legend', '', '1. Quais produtos você quer avaliar?'));
+  [...new Set(eligible.map(item => item.orderNumber))].forEach(orderNumber => {
+    const group = el('div', 'review-order');
+    const items = el('div', 'review-order-items');
+    eligible.filter(item => item.orderNumber === orderNumber).forEach(item => {
+      const label = el('label', `review-product${item.reviewed ? ' is-reviewed' : ''}`);
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'products';
+      input.value = item.key;
+      input.checked = draft.selected.includes(item.key);
+      input.disabled = item.reviewed;
+      input.addEventListener('change', () => {
+        draft.selected = input.checked ? [...draft.selected, item.key] : draft.selected.filter(key => key !== item.key);
+      });
+      label.append(input, el('span', '', item.name));
+      if (item.reviewed) label.appendChild(el('small', '', 'Avaliado'));
+      items.appendChild(label);
+    });
+    group.append(el('small', '', `Pedido ${orderNumber}`), items);
+    productsSet.appendChild(group);
   });
 
-  saveFeedbacks();
-  return true;
-}
-
-function getAverage() {
-  if (!feedbacks.length) return 0;
-
-  const total = feedbacks.reduce((sum, feedback) => sum + feedback.rating, 0);
-  return total / feedbacks.length;
-}
-
-const sessionFeedbacks = new Set();
-
-function renderFeedbacks() {
-  const listEl = document.getElementById('feedback-list');
-  const avgEl = document.getElementById('average-rating');
-  if (!listEl) return;
-
-  listEl.replaceChildren();
-
-  if (!feedbacks.length) {
-    const emptyItem = document.createElement('article');
-    emptyItem.className = 'feedback-item empty-state';
-
-    const emoji = document.createElement('span');
-    emoji.className = 'empty-state-icon';
-    emoji.textContent = '💬';
-
-    const text = document.createElement('span');
-    text.className = 'empty-state-text';
-    text.textContent = 'Nenhum feedback cadastrado ainda. Seja o primeiro a avaliar!';
-
-    emptyItem.append(emoji, text);
-    listEl.appendChild(emptyItem);
-  } else {
-    const sortedFeedbacks = [...feedbacks].sort((a, b) => {
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-    });
-
-    sortedFeedbacks.forEach(fb => {
-      const article = document.createElement('article');
-      article.className = 'feedback-item';
-
-      const stars = '★'.repeat(fb.rating) + '☆'.repeat(5 - fb.rating);
-
-      const header = document.createElement('strong');
-      header.textContent = `${fb.name} — ${stars}`;
-
-      const comment = document.createElement('p');
-      comment.textContent = fb.comment;
-
-      const dateEl = document.createElement('small');
-      dateEl.style.display = 'block';
-      dateEl.style.color = 'var(--cinza-500)';
-      dateEl.style.marginTop = '0.25rem';
-
-      try {
-        const dateObj = new Date(fb.timestamp);
-        dateEl.textContent = dateObj.toLocaleString('pt-BR');
-      } catch (e) {
-        dateEl.textContent = fb.timestamp;
-      }
-
-      article.append(header, comment, dateEl);
-      listEl.appendChild(article);
-    });
-  }
-
-  if (avgEl) {
-    const avg = getAverage();
-    avgEl.textContent = avg.toFixed(1).replace('.', ',');
-  }
-}
-
-function setFeedbackMessage(element, message, status = 'info') {
-  if (!element) return;
-  element.textContent = message;
-  element.dataset.status = status;
-}
-
-function showFeedbackConfirmationModal(name, rating, comment) {
-  const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-
-  const bodyContent = document.createElement('div');
-  bodyContent.style.display = 'grid';
-  bodyContent.style.gap = '1rem';
-
-  const successIcon = document.createElement('div');
-  successIcon.style.cssText = 'font-size:2.5rem;text-align:center;line-height:1;';
-  successIcon.textContent = '⭐';
-
-  const summary = document.createElement('div');
-  summary.style.cssText = 'display:grid;gap:.4rem;';
-
-  const nameLine = document.createElement('p');
-  nameLine.innerHTML = `<strong>${name}</strong>`;
-
-  const ratingLine = document.createElement('p');
-  ratingLine.style.cssText = 'font-size:1.3rem;letter-spacing:2px;';
-  ratingLine.textContent = stars;
-
-  const commentLine = document.createElement('p');
-  commentLine.textContent = comment;
-
-  const thanksMsg = document.createElement('p');
-  thanksMsg.style.cssText = 'color:var(--verde);font-weight:700;padding-top:.5rem;border-top:1px solid var(--cinza-200);';
-  thanksMsg.textContent = 'Obrigado pelo seu feedback! Sua opinião é muito importante.';
-
-  summary.append(nameLine, ratingLine, commentLine, thanksMsg);
-  bodyContent.append(successIcon, summary);
-
-  openModal({
-    title: 'Feedback Enviado!',
-    bodyContent,
-    actions: [
-      {
-        label: 'Fechar',
-        variant: 'button-primary',
-        onClick: closeModal
-      }
-    ]
+  const ratingSet = el('fieldset', 'review-rating-input');
+  ratingSet.appendChild(el('legend', '', '2. Sua nota'));
+  const stars = el('div', 'review-rating-stars');
+  const ratingLabel = el('span', 'review-rating-label', draft.rating ? RATING_LABELS[draft.rating] : 'Toque nas estrelas');
+  ratingLabel.setAttribute('aria-live', 'polite');
+  const paintStars = () => stars.querySelectorAll('label').forEach((label, index) => label.classList.toggle('is-on', index < draft.rating));
+  [1, 2, 3, 4, 5].forEach(star => {
+    const label = el('label');
+    label.title = RATING_LABELS[star];
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'rating';
+    input.value = String(star);
+    input.checked = draft.rating === star;
+    input.addEventListener('change', () => { draft.rating = star; ratingLabel.textContent = RATING_LABELS[star]; paintStars(); });
+    const icon = el('span', '', '★');
+    icon.setAttribute('aria-hidden', 'true');
+    label.append(input, icon, el('span', 'sr-only', `${star} estrelas, ${RATING_LABELS[star]}`));
+    stars.appendChild(label);
   });
+  paintStars();
+  ratingSet.append(stars, ratingLabel);
+
+  const commentField = el('label', 'field');
+  commentField.htmlFor = 'feedback-comment';
+  const textarea = document.createElement('textarea');
+  textarea.id = 'feedback-comment';
+  textarea.name = 'comment';
+  textarea.rows = 4;
+  textarea.maxLength = FEEDBACK_LIMITS.comment;
+  textarea.placeholder = 'O que você mais gostou? Algo poderia melhorar?';
+  textarea.value = draft.comment;
+  const counter = el('small', 'booking-counter');
+  const updateCounter = () => { counter.textContent = `${textarea.value.trim().length}/${FEEDBACK_LIMITS.comment} · mínimo ${FEEDBACK_LIMITS.commentMin}`; };
+  textarea.addEventListener('input', () => { draft.comment = textarea.value; updateCounter(); });
+  updateCounter();
+  commentField.append(el('span', '', '3. Conte como foi'), textarea, counter);
+
+  const submit = el('button', 'button button-primary', 'Publicar avaliação');
+  submit.type = 'submit';
+  const message = el('p', 'form-feedback');
+  message.id = 'feedback-message';
+  message.setAttribute('aria-live', 'polite');
+
+  form.append(productsSet, ratingSet, commentField, submit, message);
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (state.pending) return;
+    state.pending = true;
+    submit.disabled = true;
+    submit.textContent = 'Publicando...';
+    try {
+      const published = await publishFeedback({ rating: draft.rating, comment: draft.comment, productKeys: draft.selected });
+      state.list = [published, ...state.list];
+      state.form = { selected: [], rating: 0, comment: '' };
+      state.context = await getReviewContext();
+      state.filters = { ...EMPTY_FILTERS };
+      document.getElementById('feedback-search').value = '';
+      renderAll();
+      const success = document.getElementById('feedback-message');
+      if (success) { success.textContent = 'Avaliação publicada! Obrigado por compartilhar sua experiência.'; success.dataset.status = 'success'; }
+      showToast('Avaliação publicada!', 'success');
+    } catch (error) {
+      message.textContent = error?.message || 'Não foi possível publicar sua avaliação.';
+      message.dataset.status = 'error';
+      message.setAttribute('role', 'alert');
+      submit.disabled = false;
+      submit.textContent = 'Publicar avaliação';
+    } finally { state.pending = false; }
+  });
+  aside.replaceChildren(form);
+}
+
+function renderAll() {
+  renderOverview();
+  renderList();
+}
+
+async function load() {
+  try {
+    [state.list, state.context] = await Promise.all([getFeedbacks(), getReviewContext()]);
+  } catch {
+    state.list = [];
+  }
+  renderAll();
+  renderForm();
 }
 
 function setupFeedback() {
-  loadFeedbacks();
-  renderFeedbacks();
-
-  const form = document.getElementById('feedback-form');
-  const messageEl = document.getElementById('feedback-message');
-  const ratingInput = document.getElementById('feedback-rating');
-  const ratingValue = document.getElementById('rating-value');
-
-  // Live update do valor do range rating
-  if (ratingInput && ratingValue) {
-    ratingInput.addEventListener('input', () => {
-      ratingValue.textContent = ratingInput.value;
-    });
-  }
-
-  if (!form) return;
-
-  form.addEventListener('submit', event => {
-    event.preventDefault();
-
-    const formData = new FormData(form);
-    const name = (formData.get('name') || '').trim();
-    const rating = Number(formData.get('rating'));
-    const comment = (formData.get('comment') || '').trim();
-
-    // Fase 29: Validar com módulo de segurança
-    const validation = validateFeedbackInput({ name, rating, comment });
-    if (!validation.isValid) {
-      const errorMessage = validation.errors[0];
-      setFeedbackMessage(messageEl, errorMessage, 'error');
-      showToast(errorMessage, 'error');
-      return;
-    }
-
-    const sanitized = validation.sanitized;
-
-    // Prevenção de duplicidade na mesma sessão
-    const feedbackKey = `${sanitized.name.toLowerCase()}-${sanitized.rating}-${sanitized.comment.toLowerCase()}`;
-    if (sessionFeedbacks.has(feedbackKey)) {
-      setFeedbackMessage(messageEl, 'Você já enviou este feedback nesta sessão.', 'error');
-      showToast('Você já enviou este feedback nesta sessão.', 'error');
-      return;
-    }
-
-    const newFeedback = {
-      name: sanitized.name || 'Cliente',
-      rating: sanitized.rating,
-      comment: sanitized.comment
-    };
-
-    const success = addFeedback(newFeedback);
-
-    if (success) {
-      sessionFeedbacks.add(feedbackKey);
-      showFeedbackConfirmationModal(sanitized.name, sanitized.rating, sanitized.comment);
-      setFeedbackMessage(messageEl, 'Feedback enviado com sucesso!', 'success');
-      showToast('Feedback enviado com sucesso!', 'success');
-      form.reset();
-      // Atualiza o rating para refletir o valor resetado (5)
-      if (ratingValue) ratingValue.textContent = '5';
-      renderFeedbacks();
-    } else {
-      setFeedbackMessage(messageEl, 'Não foi possível salvar o feedback.', 'error');
-      showToast('Não foi possível salvar o feedback.', 'error');
-    }
-  });
+  if (!document.getElementById('feedback-list')) return;
+  const sort = document.getElementById('feedback-sort');
+  sort.replaceChildren(...FEEDBACK_SORTS.map(([value, label]) => {
+    const option = el('option', '', label);
+    option.value = value;
+    return option;
+  }));
+  sort.addEventListener('change', () => setFilter({ sort: sort.value }));
+  document.getElementById('feedback-product').addEventListener('change', event => setFilter({ productKey: event.target.value }));
+  document.getElementById('feedback-search').addEventListener('input', event => setFilter({ query: event.target.value }));
+  // Outra aba avaliou, entregou um pedido ou mudou a sessao: recarrega tudo.
+  window.addEventListener('storage', load);
+  load();
 }
 
-export {
-  addFeedback,
-  feedbacks,
-  getAverage,
-  loadFeedbacks,
-  saveFeedbacks,
-  setupFeedback
-};
+export { setupFeedback };

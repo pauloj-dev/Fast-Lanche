@@ -57,9 +57,11 @@ export function validateCheckout(data, itemCount) {
 
 export function validateFeedback({ name, rating, comment }) {
   const errors = [];
-  if (String(name || '').trim().length < 2) errors.push('Por favor, insira seu nome.');
-  if (!Number.isFinite(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) errors.push('A nota deve ser entre 1 e 5.');
-  if (String(comment || '').trim().length < 10) errors.push('O comentario deve conter pelo menos 10 caracteres.');
+  if (sanitizeText(name, FEEDBACK_LIMITS.name).length < 2) errors.push('Por favor, insira seu nome.');
+  if (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) errors.push('Escolha uma nota de 1 a 5 estrelas.');
+  const commentLength = String(comment || '').trim().length;
+  if (commentLength < FEEDBACK_LIMITS.commentMin) errors.push(`O comentário deve ter pelo menos ${FEEDBACK_LIMITS.commentMin} caracteres.`);
+  else if (commentLength > FEEDBACK_LIMITS.comment) errors.push(`O comentário pode ter até ${FEEDBACK_LIMITS.comment} caracteres.`);
   return errors;
 }
 
@@ -253,4 +255,59 @@ export function getUpcomingBookingDates(now = new Date(), count = 7) {
       month: date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
     };
   });
+}
+
+// Feedbacks (Fase 39). Limites aplicados na validacao e de novo ao carregar do armazenamento.
+export const FEEDBACK_LIMITS = Object.freeze({ name: 80, comment: 1000, commentMin: 10, productName: 80, products: 10 });
+export const FEEDBACK_SORTS = Object.freeze([['recent', 'Mais recentes'], ['best', 'Melhor nota'], ['worst', 'Pior nota']]);
+
+// Chave do produto avaliado: id do cardapio quando existe, senao o nome normalizado (itens antigos sem id).
+export function getProductKey(item) {
+  const rawId = item?.productId ?? item?.id;
+  const hasId = rawId !== null && rawId !== undefined && rawId !== '' && Number.isFinite(Number(rawId));
+  return hasId ? `p${Number(rawId)}` : `n:${sanitizeText(item?.name, FEEDBACK_LIMITS.productName).toLowerCase()}`;
+}
+
+const roundAverage = value => Math.round(value * 10) / 10;
+
+// Media geral, contagem e distribuicao por estrela (5 a 1).
+export function summarizeRatings(feedbacks) {
+  const distribution = [5, 4, 3, 2, 1].map(stars => ({ stars, count: feedbacks.filter(item => Number(item.rating) === stars).length }));
+  return { average: roundAverage(calculateAverageRating(feedbacks)), count: feedbacks.length, distribution };
+}
+
+// Media por produto avaliado, da maior para a menor quantidade de avaliacoes.
+export function calculateProductAverages(feedbacks) {
+  const products = new Map();
+  feedbacks.forEach(feedback => (feedback.items || []).forEach(item => {
+    const key = getProductKey(item);
+    const entry = products.get(key) || { key, name: item.name, total: 0, count: 0 };
+    entry.total += Number(feedback.rating) || 0;
+    entry.count += 1;
+    products.set(key, entry);
+  }));
+  return [...products.values()]
+    .map(({ total, ...entry }) => ({ ...entry, average: roundAverage(total / entry.count) }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+// Busca e filtros combinaveis. Retorna uma nova lista: os dados persistidos nao sao alterados.
+export function filterFeedbacks(feedbacks, { query = '', productKey = '', rating = 0, sort = 'recent' } = {}) {
+  const terms = sanitizeText(query, 80).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(' ').filter(Boolean);
+  const normalize = value => String(value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const time = item => Date.parse(item.timestamp) || 0;
+  const sorters = {
+    recent: (a, b) => time(b) - time(a),
+    best: (a, b) => b.rating - a.rating || time(b) - time(a),
+    worst: (a, b) => a.rating - b.rating || time(b) - time(a)
+  };
+  return feedbacks
+    .filter(item => !rating || Number(item.rating) === Number(rating))
+    .filter(item => !productKey || (item.items || []).some(product => getProductKey(product) === productKey))
+    .filter(item => {
+      if (!terms.length) return true;
+      const haystack = normalize([item.name, item.comment, ...(item.items || []).map(product => product.name)].join(' '));
+      return terms.every(term => haystack.includes(term));
+    })
+    .sort(sorters[sort] || sorters.recent);
 }

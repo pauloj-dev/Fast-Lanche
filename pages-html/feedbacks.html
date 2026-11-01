@@ -24,39 +24,41 @@
 
 <body>
     <main id="top">
-        <section id="feedback-page" class="page-section feedback-page-section" aria-labelledby="feedback-page-title">
+        <section id="feedback-page" class="page-section review-page" aria-labelledby="feedback-page-title">
             <div class="container">
-                <div class="section-heading">
+                <header class="booking-hero">
                     <div>
                         <p class="section-kicker">Opiniões</p>
-                        <h1 id="feedback-page-title">Feedbacks</h1>
+                        <h1 id="feedback-page-title">O que dizem nossos clientes</h1>
+                        <p class="booking-intro">Avaliações de quem pediu e recebeu. Busque por um produto, filtre pela nota e veja a média de cada item.</p>
+                    </div>
+                </header>
+
+                <div class="review-overview">
+                    <div class="review-score">
+                        <strong id="average-rating">0,0</strong>
+                        <span class="review-stars is-lg" id="average-stars" role="img"></span>
+                        <span id="review-count"></span>
+                    </div>
+                    <ul class="review-distribution" id="review-distribution" aria-label="Distribuição das notas"></ul>
+                    <div class="review-top-products">
+                        <h2>Mais avaliados</h2>
+                        <div id="review-top-products"></div>
                     </div>
                 </div>
 
-                <div class="feedback-layout">
-                    <div>
-                        <div class="rating-summary">
-                            <strong id="average-rating">0,0</strong>
-                            <span>media das avaliações</span>
+                <div class="review-layout">
+                    <div class="review-main">
+                        <div class="review-toolbar" role="search">
+                            <label class="review-search" for="feedback-search"><span class="sr-only">Buscar avaliações</span><span aria-hidden="true">🔎</span><input id="feedback-search" type="search" placeholder="Buscar por produto, nome ou comentário" maxlength="80"></label>
+                            <label class="field" for="feedback-product"><span class="sr-only">Produto</span><select id="feedback-product"><option value="">Todos os produtos</option></select></label>
+                            <label class="field" for="feedback-sort"><span class="sr-only">Ordenar</span><select id="feedback-sort"></select></label>
                         </div>
-                        <div id="feedback-list" class="feedback-list"></div>
+                        <div class="review-chips" id="review-chips" role="group" aria-label="Filtrar por nota"></div>
+                        <p class="review-results" id="review-results" aria-live="polite">Carregando avaliações...</p>
+                        <div id="feedback-list" class="review-list"></div>
                     </div>
-                    <form id="feedback-form" class="panel-form">
-                        <label class="field" for="feedback-name">
-                            <span>Nome</span>
-                            <input id="feedback-name" name="name" type="text" required>
-                        </label>
-                        <label class="field" for="feedback-rating">
-                            <span>Nota: <strong id="rating-value">5</strong>/5</span>
-                            <input id="feedback-rating" name="rating" type="range" min="1" max="5" value="5">
-                        </label>
-                        <label class="field" for="feedback-comment">
-                            <span>Comentario</span>
-                            <textarea id="feedback-comment" name="comment" rows="4" minlength="10" required></textarea>
-                        </label>
-                        <button class="button button-primary" type="submit">Enviar feedback</button>
-                        <p id="feedback-message" class="form-feedback" aria-live="polite"></p>
-                    </form>
+                    <aside class="review-aside" id="review-aside"></aside>
                 </div>
             </div>
         </section>
