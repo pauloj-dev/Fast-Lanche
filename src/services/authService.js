@@ -1,6 +1,6 @@
 // Autenticacao simulada no navegador (Fase 36). NAO e autenticacao segura: serve so para o fluxo estatico.
 // Os modelos e o hash sao os mesmos de js/page-init.js, entao contas criadas no legado entram pelo React e vice-versa.
-import { normalizeEmail, validateLogin, validateSignup } from '../utils/businessRules.js';
+import { getInitials, normalizeEmail, validateLogin, validateSignup } from '../utils/businessRules.js';
 
 export const USERS_KEY = 'fastlanche_users';
 export const SESSION_KEY = 'fastlanche_session';
@@ -80,10 +80,41 @@ export function getAccount() {
   if (!session) return { loggedIn: false, name: '', email: '', avatar: '', initials: '?' };
   const profile = getCurrentProfile() || {};
   const name = String(profile.name || session.name || '').trim();
-  const parts = name.split(/\s+/).filter(Boolean);
-  const initials = parts.length > 1 ? `${parts[0][0]}${parts.at(-1)[0]}` : (parts[0]?.[0] || session.email[0] || '?');
   const avatar = typeof profile.avatar === 'string' && /^(data:image\/|https?:|\.{0,2}\/)/.test(profile.avatar) ? profile.avatar : '';
-  return { loggedIn: true, name, email: session.email, avatar, initials: initials.toUpperCase() };
+  return { loggedIn: true, name, email: session.email, avatar, initials: getInitials(name, session.email) };
+}
+
+// Grava o perfil ja validado da conta logada (Fase 37). Atualiza os tres lugares que guardam dados da conta:
+// perfil ativo, cadastro do usuario (o login recria o perfil a partir dele) e nome da sessao.
+// O e-mail e a identidade da conta e nunca e trocado por aqui.
+export function saveAccountProfile(fields) {
+  const session = readSession();
+  const storage = getStorage();
+  if (!session || !storage) throw new Error('Sessao expirada. Faca login novamente.');
+  const current = getCurrentProfile() || {};
+  const now = new Date().toISOString();
+  const profile = { ...current, ...fields, email: session.email, createdAt: current.createdAt || now, updatedAt: now };
+  // Usuarios gravados por outras paginas sao regravados exatamente como estavam; senha/hash nao sao tocados.
+  const rawUsers = readJson(storage, USERS_KEY, []);
+  const users = (Array.isArray(rawUsers) ? rawUsers : []).map(user => (
+    user && normalizeEmail(user.email) === session.email
+      ? { ...user, name: profile.name, phone: profile.phone, address: profile.address, avatar: profile.avatar, preferences: profile.preferences, updatedAt: now }
+      : user
+  ));
+  const writes = [
+    [USERS_KEY, JSON.stringify(users)],
+    [PROFILE_KEY, JSON.stringify(profile)],
+    [SESSION_KEY, JSON.stringify({ ...readJson(storage, SESSION_KEY, {}), name: profile.name })]
+  ];
+  const previous = writes.map(([key]) => [key, storage.getItem(key)]);
+  try { writes.forEach(([key, value]) => storage.setItem(key, value)); }
+  catch {
+    // Cota excedida no meio da gravacao: restaura o que ja foi escrito para nao deixar conta e perfil divergentes.
+    previous.forEach(([key, value]) => { try { value === null ? storage.removeItem(key) : storage.setItem(key, value); } catch { /* mantem o melhor estado possivel */ } });
+    throw new Error('Nao foi possivel salvar o perfil. Libere espaco no navegador ou use uma imagem menor.');
+  }
+  notifyAuthChange();
+  return profile;
 }
 
 export async function register(input) {

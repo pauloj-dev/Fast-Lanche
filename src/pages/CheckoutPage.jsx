@@ -1,27 +1,27 @@
 import { useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
-import { getCurrentProfile, readSession } from '../services/authService.js';
+import { readSession } from '../services/authService.js';
+import { getCheckoutDefaults } from '../services/profileService.js';
 import { getReceiptUrl, placeOrder } from '../services/checkoutService.js';
 import { getProductImageUrl } from '../components/ProductImage.jsx';
 import { FreeDeliveryBar } from './CartPage.jsx';
 import { formatCurrency as currency } from '../utils/format.js';
 
 const PAYMENT_OPTIONS = [['pix', '⚡', 'Pix', 'Aprovação na hora'], ['card', '💳', 'Cartão', 'Crédito ou débito'], ['cash', '💵', 'Dinheiro', 'Pague na entrega']];
-const profileToFields = profile => ({ name: profile.name || '', email: profile.email || '', phone: profile.phone || '', address: profile.address || '', payment: profile.preferences?.paymentMethod || profile.paymentMethod || '' });
-const EMPTY_FIELDS = profileToFields({});
+const EMPTY_FIELDS = { name: '', email: '', phone: '', address: '', payment: '' };
 
 export function CheckoutPage() {
   const { cart, clear } = useCart();
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState({ text: '', status: '' });
-  // Pre-preenchimento so com o perfil da conta logada.
-  const [profile] = useState(() => getCurrentProfile());
+  // Pre-preenchimento so com o perfil da conta logada (editado em perfil.html).
+  const [profile] = useState(getCheckoutDefaults);
   const [useProfile, setUseProfile] = useState(Boolean(profile));
-  const [profileFields, setProfileFields] = useState(() => profile ? profileToFields(profile) : EMPTY_FIELDS);
+  const [profileFields, setProfileFields] = useState(() => profile || EMPTY_FIELDS);
   function handleProfileToggle(event) {
     const enabled = event.target.checked;
     setUseProfile(enabled);
-    if (enabled && profile) setProfileFields(profileToFields(profile));
+    if (enabled && profile) setProfileFields(profile);
   }
   async function submit(event) {
     event.preventDefault();

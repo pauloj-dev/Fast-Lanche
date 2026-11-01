@@ -54,11 +54,25 @@ function saveProfile() {
     try {
         currentProfile.updatedAt = new Date().toISOString();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(currentProfile));
+        syncUserRecord();
         return true;
     } catch (error) {
         console.warn('Nao foi possivel salvar o perfil.', error);
         return false;
     }
+}
+
+// O login (legado e React) recria o perfil a partir de fastlanche_users: sem esta copia as alteracoes
+// feitas aqui sumiriam no proximo login. Senha/hash e campos extras do cadastro sao preservados.
+function syncUserRecord() {
+    const email = normalizeText(currentProfile.email).toLowerCase();
+    if (!email) return;
+    const users = JSON.parse(localStorage.getItem('fastlanche_users') || '[]');
+    if (!Array.isArray(users)) return;
+    const updated = users.map(user => (user && normalizeText(user.email).toLowerCase() === email
+        ? { ...user, name: currentProfile.name, phone: currentProfile.phone, address: currentProfile.address, avatar: currentProfile.avatar, preferences: currentProfile.preferences, updatedAt: currentProfile.updatedAt }
+        : user));
+    localStorage.setItem('fastlanche_users', JSON.stringify(updated));
 }
 
 function loadProfile() {
@@ -202,218 +216,211 @@ function updateHeaderAvatar() {
 // MODAL DE PERFIL
 // ============================================
 
+const PAYMENT_PREFERENCES = [
+    { value: 'pix', icon: '⚡', label: 'Pix', hint: 'Na hora' },
+    { value: 'card', icon: '💳', label: 'Cartão', hint: 'Crédito/débito' },
+    { value: 'cash', icon: '💵', label: 'Dinheiro', hint: 'Na entrega' },
+    { value: '', icon: '🤔', label: 'Depois', hint: 'No checkout' }
+];
+
+function createElement(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
+}
+
+function createField({ id, label, type = 'text', value = '', full = false, hint = '', attrs = {} }) {
+    const field = createElement('label', `field${full ? ' field-full' : ''}`);
+    field.htmlFor = id;
+    field.appendChild(createElement('span', '', label));
+    const input = document.createElement('input');
+    input.id = id;
+    input.type = type;
+    input.value = value || '';
+    Object.entries(attrs).forEach(([key, attrValue]) => input.setAttribute(key, attrValue));
+    field.appendChild(input);
+    if (hint) field.appendChild(createElement('small', 'profile-modal-hint', hint));
+    return { field, input };
+}
+
+function createModalSection(icon, title) {
+    const section = createElement('section', 'profile-modal-section');
+    const heading = createElement('h4', 'profile-modal-section-title');
+    heading.appendChild(createElement('span', 'profile-modal-section-icon', icon));
+    heading.appendChild(document.createTextNode(title));
+    section.appendChild(heading);
+    return section;
+}
+
 function createProfileModalContent() {
     const profile = getProfile();
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'profile-modal-content';
+    const wrapper = createElement('div', 'profile-modal-content');
 
-    // --- Avatar Upload ---
-    const avatarSection = document.createElement('div');
-    avatarSection.className = 'profile-avatar-section';
+    // --- Topo: avatar, nome e acoes da foto ---
+    const hero = createElement('div', 'profile-modal-hero');
 
-    const avatarPreview = document.createElement('div');
-    avatarPreview.className = 'profile-avatar-preview';
+    const avatarPreview = createElement('div', 'profile-avatar-preview profile-modal-avatar');
     avatarPreview.id = 'profile-avatar-preview';
 
-    const initials = document.createElement('span');
-    initials.className = 'profile-avatar-initials-large';
+    const initials = createElement('span', 'profile-avatar-initials-large', getInitials(profile.name));
     initials.id = 'profile-avatar-initials';
-    initials.textContent = getInitials(profile.name);
 
-    const avatarImg = document.createElement('img');
-    avatarImg.className = 'profile-avatar-img-large';
+    const avatarImg = createElement('img', 'profile-avatar-img-large');
     avatarImg.id = 'profile-avatar-img';
     avatarImg.alt = 'Foto do perfil';
-    if (profile.avatar) {
-        avatarImg.src = profile.avatar;
-        avatarImg.style.display = 'block';
-        initials.style.display = 'none';
-    } else {
-        avatarImg.style.display = 'none';
-        initials.style.display = 'flex';
-    }
 
-    avatarPreview.appendChild(avatarImg);
-    avatarPreview.appendChild(initials);
-
-    const avatarActions = document.createElement('div');
-    avatarActions.className = 'profile-avatar-actions';
-
-    const uploadLabel = document.createElement('label');
-    uploadLabel.className = 'button button-secondary button-small';
-    uploadLabel.textContent = 'Alterar foto';
+    // Botao de camera sobre o avatar: o proprio label abre o seletor de arquivo.
+    const cameraLabel = createElement('label', 'profile-modal-camera');
+    cameraLabel.title = 'Alterar foto';
+    cameraLabel.setAttribute('aria-label', 'Alterar foto');
+    cameraLabel.appendChild(createElement('span', '', '📷'));
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.style.display = 'none';
-    fileInput.addEventListener('change', (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+    fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
+    fileInput.className = 'sr-only';
+    cameraLabel.appendChild(fileInput);
 
-        // Validar tamanho (max 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            import('./ui.js').then(({ showToast }) => {
-                showToast('A imagem deve ter no maximo 2MB.', 'error');
-            });
+    avatarPreview.append(avatarImg, initials, cameraLabel);
+
+    const identity = createElement('div', 'profile-modal-identity');
+    const heroName = createElement('strong', 'profile-modal-name', profile.name || 'Seu perfil');
+    const heroEmail = createElement('span', 'profile-modal-email', profile.email || '');
+    identity.append(heroName, heroEmail);
+
+    const avatarActions = createElement('div', 'profile-avatar-actions profile-modal-avatar-actions');
+    const uploadLabel = createElement('label', 'profile-modal-pill');
+    uploadLabel.textContent = profile.avatar ? 'Trocar foto' : 'Adicionar foto';
+    uploadLabel.htmlFor = 'profile-avatar-file';
+    const pillInput = fileInput.cloneNode();
+    pillInput.id = 'profile-avatar-file';
+    uploadLabel.appendChild(pillInput);
+
+    const removeBtn = createElement('button', 'profile-modal-pill profile-modal-pill-ghost', 'Remover');
+    removeBtn.type = 'button';
+
+    avatarActions.append(uploadLabel, removeBtn);
+
+    const showAvatar = (src) => {
+        const hasAvatar = Boolean(src);
+        avatarImg.src = hasAvatar ? src : '';
+        avatarImg.style.display = hasAvatar ? 'block' : 'none';
+        initials.style.display = hasAvatar ? 'none' : 'flex';
+        removeBtn.hidden = !hasAvatar;
+        uploadLabel.firstChild.textContent = hasAvatar ? 'Trocar foto' : 'Adicionar foto';
+    };
+    showAvatar(profile.avatar);
+
+    const handleFile = (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+            import('./ui.js').then(({ showToast }) => showToast('Use uma imagem PNG, JPG, WEBP ou GIF.', 'error'));
             return;
         }
-
+        if (file.size > 2 * 1024 * 1024) {
+            import('./ui.js').then(({ showToast }) => showToast('A imagem deve ter no maximo 2MB.', 'error'));
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
             const base64 = e.target?.result;
             if (typeof base64 === 'string') {
                 updateAvatar(base64);
-                // Atualizar preview
-                avatarImg.src = base64;
-                avatarImg.style.display = 'block';
-                initials.style.display = 'none';
+                showAvatar(base64);
             }
         };
         reader.readAsDataURL(file);
-    });
-    uploadLabel.appendChild(fileInput);
+    };
+    fileInput.addEventListener('change', handleFile);
+    pillInput.addEventListener('change', handleFile);
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'button button-secondary button-small';
-    removeBtn.textContent = 'Remover foto';
-    removeBtn.type = 'button';
     removeBtn.addEventListener('click', () => {
         removeAvatar();
-        avatarImg.style.display = 'none';
-        initials.style.display = 'flex';
         initials.textContent = getInitials(getProfileName());
-        fileInput.value = '';
+        showAvatar('');
     });
 
-    avatarActions.appendChild(uploadLabel);
-    avatarActions.appendChild(removeBtn);
-    avatarSection.appendChild(avatarPreview);
-    avatarSection.appendChild(avatarActions);
-    wrapper.appendChild(avatarSection);
+    hero.append(avatarPreview, identity, avatarActions);
+    wrapper.appendChild(hero);
 
-    // --- Informações Pessoais ---
-    const infoSection = document.createElement('div');
-    infoSection.className = 'profile-section';
+    // --- Informações pessoais ---
+    const infoSection = createModalSection('👤', 'Informações pessoais');
+    const fields = createElement('div', 'profile-fields');
 
-    const infoTitle = document.createElement('h4');
-    infoTitle.className = 'profile-section-title';
-    infoTitle.textContent = 'Informacoes Pessoais';
-    infoSection.appendChild(infoTitle);
+    const { field: nameField, input: nameInput } = createField({
+        id: 'profile-name', label: 'Nome completo', value: profile.name, full: true,
+        attrs: { autocomplete: 'name', minlength: '3', maxlength: '80', required: '' }
+    });
+    nameInput.addEventListener('input', () => {
+        heroName.textContent = nameInput.value.trim() || 'Seu perfil';
+        initials.textContent = getInitials(nameInput.value);
+    });
 
-    const fields = document.createElement('div');
-    fields.className = 'profile-fields';
+    // O e-mail identifica a conta (sessao e cadastro): nao e editavel por aqui.
+    const { field: emailField, input: emailInput } = createField({
+        id: 'profile-email', label: 'E-mail da conta 🔒', type: 'email', value: profile.email,
+        hint: 'Identifica sua conta.', attrs: { readonly: '' }
+    });
 
-    // Nome
-    const nameField = document.createElement('label');
-    nameField.className = 'field';
-    nameField.innerHTML = '<span>Nome completo</span>';
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.id = 'profile-name';
-    nameInput.value = profile.name;
-    nameInput.required = true;
-    nameInput.minLength = 3;
-    nameField.appendChild(nameInput);
-    fields.appendChild(nameField);
+    const { field: phoneField, input: phoneInput } = createField({
+        id: 'profile-phone', label: 'Telefone', type: 'tel', value: profile.phone,
+        attrs: { autocomplete: 'tel', inputmode: 'tel', maxlength: '15', placeholder: '(00) 00000-0000' }
+    });
 
-    // Email
-    const emailField = document.createElement('label');
-    emailField.className = 'field';
-    emailField.innerHTML = '<span>E-mail</span>';
-    const emailInput = document.createElement('input');
-    emailInput.type = 'email';
-    emailInput.id = 'profile-email';
-    emailInput.value = profile.email;
-    emailField.appendChild(emailInput);
-    fields.appendChild(emailField);
-
-    // Telefone
-    const phoneField = document.createElement('label');
-    phoneField.className = 'field';
-    phoneField.innerHTML = '<span>Telefone</span>';
-    const phoneInput = document.createElement('input');
-    phoneInput.type = 'tel';
-    phoneInput.id = 'profile-phone';
-    phoneInput.value = profile.phone;
-    phoneInput.autocomplete = 'tel';
-    phoneInput.inputmode = 'tel';
-    phoneInput.minLength = 10;
-    phoneInput.maxLength = 15;
-    phoneInput.placeholder = '(00) 00000-0000';
-    phoneField.appendChild(phoneInput);
-    fields.appendChild(phoneField);
-
-    // Endereço
-    const addressField = document.createElement('label');
-    addressField.className = 'field field-full';
-    addressField.innerHTML = '<span>Endereco padrao de entrega</span>';
-    const addressInput = document.createElement('input');
-    addressInput.type = 'text';
-    addressInput.id = 'profile-address';
-    addressInput.value = profile.address;
-    addressInput.autocomplete = 'street-address';
-    addressInput.minLength = 8;
-    addressField.appendChild(addressInput);
-    fields.appendChild(addressField);
-
+    fields.append(nameField, emailField, phoneField);
     infoSection.appendChild(fields);
     wrapper.appendChild(infoSection);
 
-    // --- Preferências ---
-    const prefsSection = document.createElement('div');
-    prefsSection.className = 'profile-section';
-
-    const prefsTitle = document.createElement('h4');
-    prefsTitle.className = 'profile-section-title';
-    prefsTitle.textContent = 'Preferencias';
-    prefsSection.appendChild(prefsTitle);
-
-    const prefsFields = document.createElement('div');
-    prefsFields.className = 'profile-fields';
-
-    // Método de pagamento preferido
-    const paymentField = document.createElement('label');
-    paymentField.className = 'field';
-    paymentField.innerHTML = '<span>Metodo de pagamento preferido</span>';
-    const paymentSelect = document.createElement('select');
-    paymentSelect.id = 'profile-payment';
-    const paymentOptions = [
-        { value: '', label: 'Nao definido' },
-        { value: 'pix', label: 'Pix' },
-        { value: 'card', label: 'Cartao' },
-        { value: 'cash', label: 'Dinheiro' }
-    ];
-    paymentOptions.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.label;
-        if (profile.preferences.paymentMethod === opt.value) option.selected = true;
-        paymentSelect.appendChild(option);
+    // --- Endereço ---
+    const addressSection = createModalSection('📍', 'Endereço padrão');
+    const { field: addressField, input: addressInput } = createField({
+        id: 'profile-address', label: 'Endereço de entrega', value: profile.address, full: true,
+        attrs: { autocomplete: 'street-address', maxlength: '200', placeholder: 'Rua, número, bairro' }
     });
-    paymentField.appendChild(paymentSelect);
-    prefsFields.appendChild(paymentField);
+    addressSection.appendChild(addressField);
+    wrapper.appendChild(addressSection);
 
-    // Notificações
-    const notifField = document.createElement('label');
-    notifField.className = 'field field-checkbox';
+    // --- Preferências ---
+    const prefsSection = createModalSection('⚙️', 'Preferências');
+
+    const paymentGroup = createElement('fieldset', 'payment-options profile-modal-payments');
+    paymentGroup.appendChild(createElement('legend', '', 'Pagamento preferido'));
+    PAYMENT_PREFERENCES.forEach(opt => {
+        const option = createElement('label', 'payment-option');
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'profile-payment';
+        radio.value = opt.value;
+        radio.checked = (profile.preferences.paymentMethod || '') === opt.value;
+        option.append(radio, createElement('span', 'payment-option-icon', opt.icon), createElement('span', '', opt.label), createElement('small', '', opt.hint));
+        paymentGroup.appendChild(option);
+    });
+    // Mantem a mesma interface (paymentSelect.value) usada no salvamento.
+    const paymentSelect = {
+        get value() { return paymentGroup.querySelector('input:checked')?.value || ''; }
+    };
+    prefsSection.appendChild(paymentGroup);
+
+    const notifField = createElement('label', 'account-switch');
+    notifField.htmlFor = 'profile-notifications';
+    const notifText = createElement('span', 'account-switch-text');
+    notifText.append(createElement('strong', '', 'Notificações de pedidos'), createElement('small', '', 'Avisos quando o status mudar.'));
     const notifInput = document.createElement('input');
     notifInput.type = 'checkbox';
     notifInput.id = 'profile-notifications';
-    notifInput.checked = profile.preferences.notifications;
-    const notifSpan = document.createElement('span');
-    notifSpan.textContent = 'Receber notificacoes';
-    notifField.appendChild(notifInput);
-    notifField.appendChild(notifSpan);
-    prefsFields.appendChild(notifField);
-
-    prefsSection.appendChild(prefsFields);
+    notifInput.setAttribute('role', 'switch');
+    notifInput.checked = profile.preferences.notifications !== false;
+    notifField.append(notifText, notifInput, createElement('span', 'account-switch-track'));
+    prefsSection.appendChild(notifField);
     wrapper.appendChild(prefsSection);
 
     // --- Feedback ---
-    const feedback = document.createElement('p');
-    feedback.className = 'form-feedback';
+    const feedback = createElement('p', 'form-feedback');
     feedback.id = 'profile-feedback';
+    feedback.setAttribute('aria-live', 'polite');
     wrapper.appendChild(feedback);
 
     return { wrapper, nameInput, emailInput, phoneInput, addressInput, paymentSelect, notifInput, feedback };
@@ -447,7 +454,7 @@ function openProfileModal() {
     // Botão salvar
     const saveBtn = document.createElement('button');
     saveBtn.className = 'button button-primary';
-    saveBtn.textContent = 'Salvar alteracoes';
+    saveBtn.textContent = 'Salvar alterações';
     saveBtn.type = 'button';
     saveBtn.addEventListener('click', () => {
         const name = nameInput.value.trim();

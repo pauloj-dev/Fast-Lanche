@@ -21,7 +21,7 @@ React components
 
 ## Compatibilidade visual
 
-Os componentes React mantêm os IDs, classes, textos, assets e variáveis de `css/styles.css` usados pela versão anterior. Não foi introduzida uma biblioteca visual nem uma nova paleta. As páginas de perfil e administração continuam utilizando seus módulos legados (o login React é compatível com as contas do legado) enquanto seus fluxos específicos não fazem parte da migração inicial.
+Os componentes React mantêm os IDs, classes, textos, assets e variáveis de `css/styles.css` usados pela versão anterior. Não foi introduzida uma biblioteca visual nem uma nova paleta. O perfil foi migrado na Fase 37 (`react/perfil.html`, compatível com as contas e o perfil do legado); a administração continua utilizando seus módulos legados enquanto seu fluxo não faz parte da migração.
 
 ## Persistência e API
 

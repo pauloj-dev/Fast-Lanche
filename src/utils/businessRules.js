@@ -96,3 +96,53 @@ export function validateSignup({ name, email, password, confirmPassword, phone }
   if (String(phone || '').trim() && (phoneDigits.length < 10 || phoneDigits.length > 11)) errors.push('Informe um telefone valido com DDD.');
   return errors;
 }
+
+// Perfil (Fase 37). Os limites seguem js/security.js (sanitizeProfileData) para os dois fluxos aceitarem os mesmos dados.
+export const PROFILE_LIMITS = Object.freeze({ name: 80, phone: 20, address: 200 });
+export const PROFILE_PAYMENT_METHODS = Object.freeze(['', 'pix', 'card', 'cash']);
+export const AVATAR_ACCEPTED_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+export const AVATAR_MAX_FILE_BYTES = 2 * 1024 * 1024;
+// Avatar ja reduzido, guardado como data URL no perfil e na conta: precisa caber com folga na cota do localStorage.
+export const AVATAR_MAX_DATA_URL_LENGTH = 300 * 1024;
+const AVATAR_DATA_URL_PATTERN = /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/]+=*$/i;
+
+// Texto livre de formulario: sem tags, sem caracteres de controle, espacos colapsados e tamanho limitado.
+export const sanitizeText = (value, maxLength) => String(value ?? '')
+  .replace(/[<>]/g, '')
+  .replace(/[\u0000-\u001f\u007f]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, maxLength);
+
+export function getInitials(name, fallback = '?') {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return String(fallback || '?').charAt(0).toUpperCase() || '?';
+  return (parts.length > 1 ? `${parts[0][0]}${parts.at(-1)[0]}` : parts[0][0]).toUpperCase();
+}
+
+export function validateProfile({ name, phone, address, paymentMethod } = {}) {
+  const errors = [];
+  if (sanitizeText(name, PROFILE_LIMITS.name).length < 3) errors.push('O nome deve ter pelo menos 3 caracteres.');
+  const phoneDigits = String(phone || '').replace(/\D/g, '');
+  if (String(phone || '').trim() && (phoneDigits.length < 10 || phoneDigits.length > 11)) errors.push('Informe um telefone valido com DDD.');
+  const cleanAddress = sanitizeText(address, PROFILE_LIMITS.address);
+  if (cleanAddress && cleanAddress.length < 8) errors.push('Informe um endereco valido (minimo 8 caracteres).');
+  if (!PROFILE_PAYMENT_METHODS.includes(paymentMethod ?? '')) errors.push('Forma de pagamento preferida invalida.');
+  return errors;
+}
+
+// Valida o arquivo escolhido antes de le-lo. Retorna a mensagem de erro ou '' quando aceito.
+export function validateAvatarFile(file) {
+  if (!file || typeof file !== 'object') return 'Selecione uma imagem.';
+  if (!AVATAR_ACCEPTED_TYPES.includes(file.type)) return 'Formato nao suportado. Use PNG, JPG, WEBP ou GIF.';
+  if (!(Number(file.size) > 0)) return 'O arquivo esta vazio.';
+  if (Number(file.size) > AVATAR_MAX_FILE_BYTES) return 'A imagem deve ter no maximo 2 MB.';
+  return '';
+}
+
+// Avatares enviados pela pagina legada (ate 2 MB sem redimensionar) continuam aceitos ao carregar, para nao perder a foto.
+export const LEGACY_AVATAR_MAX_DATA_URL_LENGTH = Math.ceil(AVATAR_MAX_FILE_BYTES * 4 / 3) + 64;
+
+export const isValidAvatarDataUrl = (value, maxLength = AVATAR_MAX_DATA_URL_LENGTH) => typeof value === 'string'
+  && value.length <= maxLength
+  && AVATAR_DATA_URL_PATTERN.test(value);

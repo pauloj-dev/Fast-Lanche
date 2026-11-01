@@ -28,7 +28,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | --- | --- | --- | --- |
 | 35 | Checkout | Concluída | Comprovante React, fluxo de conclusão e modelo de pedido completo |
 | 36 | Login / Sign In | Concluída | Autenticação estática integrada ao shell React |
-| 37 | Perfil avançado | Pendente | Perfil React protegido, preferências e histórico |
+| 37 | Perfil avançado | Concluída | Perfil React protegido, preferências e histórico |
 | 38 | Reservas avançadas | Parcial | Disponibilidade, pagamento simulado e confirmação |
 | 39 | Feedbacks avançados | Parcial | Feedback vinculado a produtos com busca e filtros |
 | 40 | Segurança | Parcial | Validação e sanitização compartilhadas nos fluxos React |
@@ -55,6 +55,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 │   ├── checkout.html              # Checkout
 │   ├── receipt.html               # Comprovante do pedido
 │   ├── login.html                 # Login e cadastro
+│   ├── perfil.html                # Perfil protegido e histórico de pedidos
 │   ├── reservas.html              # Reservas
 │   └── feedbacks.html             # Feedbacks
 ├── src/
@@ -98,6 +99,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Reserva: `src/services/bookingService.js`.
 - Feedback: `src/services/feedbackService.js`.
 - Sessão e contas: `src/services/authService.js` é o único ponto que lê/grava `fastlanche_users`, `fastlanche_session` e `fastlanche_user_profile`; o `Header` usa `getAccount()`.
+- Perfil: `src/services/profileService.js` (validação, avatar, preferências, histórico e dados do checkout). Grava pela função `saveAccountProfile` do `authService`.
 - Checkout: `src/services/checkoutService.js` (`placeOrder`) concentra validação, pagamento simulado e gravação do pedido.
 - API futura: `src/services/api/apiClient.js`.
 
@@ -163,7 +165,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - `src/services/authService.js`: `register`, `login`, `logout`, `readSession`/`getSession`, `getCurrentProfile`, `getAccount`. Usa o mesmo hash e modelo de usuário de `js/page-init.js`: contas criadas no legado entram pelo React e vice-versa.
 - Validações puras em `src/utils/businessRules.js` (`validateLogin`, `validateSignup`, `normalizeEmail`). E-mail é comparado sem diferenciar maiúsculas; login inválido usa a mesma mensagem para e-mail inexistente e senha errada.
 - Sessão e perfil nunca contêm senha nem hash. Logout remove somente `fastlanche_session`.
-- `Header`: botão Entrar leva ao login com retorno para a página atual; logado mostra avatar/iniciais (Perfil ainda legado) e botão Sair.
+- `Header`: botão Entrar leva ao login com retorno para a página atual; logado mostra avatar/iniciais (link para `react/perfil.html` desde a Fase 37) e botão Sair.
 - Checkout só pré-preenche com o perfil da conta logada (perfil de outra conta é ignorado) e oferece o login para preencher.
 - Legado: o logout de `js/user-navigation.js` passou a remover também a sessão (antes o usuário continuava logado).
 
@@ -176,9 +178,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 37 - PERFIL AVANÇADO (PENDENTE)
+## FASE 37 - PERFIL AVANÇADO (CONCLUÍDA)
 
-### Trabalho restante
+### Escopo
 
 - Criar `src/pages/ProfilePage.jsx` e `react/perfil.html`.
 - Adicionar proteção de página: usuário sem sessão deve ser direcionado ao shell de Login.
@@ -189,12 +191,39 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Buscar pedidos do usuário em `orderService` e exibir histórico com número, data, status e total.
 - Integrar os dados do perfil ao pré-preenchimento do Checkout e ao `Header`.
 
+### Entregue nesta fase
+
+- `src/pages/ProfilePage.jsx` + `react/perfil.html`, registrados no `vite.config.js` e no mapa de `src/App.jsx`.
+- Proteção: a sessão é lida de forma síncrona antes do primeiro render; sem sessão nada privado é renderizado e a página faz `location.replace('login.html?redirect=perfil.html')`. Logout no header ou em outra aba (`storage`/`appstate:update`) também redireciona.
+- `src/services/profileService.js`: `getProfile`, `updateProfile`, `updateAvatar`, `removeAvatar`, `getOrderHistory`, `getCheckoutDefaults`, `prepareAvatarFile` e `normalizeProfile`. A página não acessa `localStorage`.
+- `authService.saveAccountProfile`: grava perfil ativo, cadastro do usuário em `fastlanche_users` (o login recria o perfil a partir dele, então as alterações sobrevivem a logout/login) e nome da sessão. Se a cota estourar no meio da gravação, as três chaves são restauradas. Senha/hash nunca são tocados e o e-mail (identidade da conta) não é editável.
+- Regras puras em `src/utils/businessRules.js`: `validateProfile`, `validateAvatarFile`, `isValidAvatarDataUrl`, `sanitizeText`, `getInitials` (reutilizado pelo `getAccount`), com os mesmos limites de `js/security.js`.
+- Avatar: aceita PNG/JPG/WEBP/GIF de até 2 MB; o arquivo é lido com `FileReader`, decodificado (arquivo com tipo falso é rejeitado) e reduzido para no máximo 256 px em JPEG antes de gravar (alguns KB, cabe na cota do `localStorage`). SVG e qualquer URL que não seja `data:image/...;base64` são recusados. Avatares grandes enviados pela página legada continuam aceitos ao carregar.
+- Dados lidos do armazenamento são normalizados (texto sanitizado, preferências e avatar inválidos voltam ao padrão); JSON corrompido não quebra a página.
+- Histórico: somente pedidos com `userProfileId` igual ao e-mail da sessão, do mais recente ao mais antigo, com número, data, status, total e link para o comprovante. Pedidos feitos sem login com o mesmo e-mail digitado não entram, pois o formulário não prova a identidade.
+- Layout próprio (classes `account-*` em `css/styles.css`, sem afetar a página legada que usa `profile-*`):
+  - **Hero com avatar:** botão de câmera para trocar a foto e arrastar-e-soltar sobre o avatar.
+  - **Estatísticas:** pedidos, total gasto e último pedido (`summarizeOrders`).
+  - **Formulário em seções numeradas:** pagamento preferido em cartões e notificações em switch.
+  - **Barra de salvar:** aparece com "alterações não salvas" e opção Descartar.
+  - **Progresso do perfil:** barra e checklist (`getProfileCompletion`).
+  - **Pedidos:** status coloridos, resumo de itens e "ver todos".
+  - **Atalhos:** novo pedido, reserva, avaliação e sair.
+- Checkout usa `getCheckoutDefaults()` (nome, e-mail, telefone, endereço e pagamento preferido do perfil). O avatar do `Header` aponta para `perfil.html` (React).
+
+### Evidência
+
+- `tests/test-profile.mjs` (8 testes): regras e limites, acesso sem sessão, persistência refletida em header/checkout e após novo login, entrada inválida sem alterar dados, avatar válido/inválido/remoção, perfil corrompido, histórico filtrado e ordenado, rollback em quota excedida. `npm test`: 38/38.
+- Validado no navegador (`npm run build` + `npm run preview`): perfil deslogado -> login -> cadastro -> retorno ao perfil; telefone inválido rejeitado; salvamento válido refletido no header (iniciais) e no checkout (inclusive pagamento preferido); avatar PDF, PNG falso e arquivo de 3 MB rejeitados, PNG 800x600 salvo como JPEG 256x192 (~3 KB) e exibido no header; histórico mostrou só os pedidos da conta e incluiu o pedido feito no checkout; logout pelo header redirecionou ao login. Sem overflow horizontal em 375 px e sem erros no console.
+
 ### Critérios de aceite
 
 - Perfil não abre para usuário deslogado.
 - Alterações persistem e são refletidas no header e no checkout.
 - Avatar inválido é rejeitado sem quebrar a página.
 - O histórico mostra apenas pedidos associados ao usuário atual.
+
+> A página legada `pages-html/perfil.html` continua existindo para o fluxo legado; as duas gravam no mesmo modelo de perfil.
 
 ---
 

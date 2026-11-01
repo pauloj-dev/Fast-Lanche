@@ -11,18 +11,19 @@ import { BookingPage } from './pages/BookingPage.jsx';
 import { FeedbackPage } from './pages/FeedbackPage.jsx';
 import { ReceiptPage } from './pages/ReceiptPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
+import { ProfilePage } from './pages/ProfilePage.jsx';
 
 const pages = {
   'index.html': HomePage, 'cardapio.html': MenuPage, 'carrinho.html': CartPage,
   'checkout.html': CheckoutPage, 'receipt.html': ReceiptPage, 'reservas.html': BookingPage, 'feedbacks.html': FeedbackPage,
-  'login.html': LoginPage
+  'login.html': LoginPage, 'perfil.html': ProfilePage
 };
 
 export function App() {
   const page = location.pathname.split('/').pop() || 'index.html';
   const Page = pages[page] || HomePage;
   useEffect(() => {
-    const titles = { 'index.html': 'Home', 'cardapio.html': 'Cardapio', 'carrinho.html': 'Carrinho', 'checkout.html': 'Checkout', 'receipt.html': 'Comprovante', 'reservas.html': 'Reservas', 'feedbacks.html': 'Feedbacks', 'login.html': 'Login' };
+    const titles = { 'index.html': 'Home', 'cardapio.html': 'Cardapio', 'carrinho.html': 'Carrinho', 'checkout.html': 'Checkout', 'receipt.html': 'Comprovante', 'reservas.html': 'Reservas', 'feedbacks.html': 'Feedbacks', 'login.html': 'Login', 'perfil.html': 'Perfil' };
     document.title = `Fast Lanche - ${titles[page] || 'Home'}`;
   }, [page]);
   return <CartProvider><ModalProvider><Header/><Page/><Footer/><ModalHost/></ModalProvider></CartProvider>;
