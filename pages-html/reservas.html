@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="description" content="Fast Lanche - Reservas de mesas. Agende sua visita com antecedencia." />
+    <meta name="description" content="Fast Lanche - Reservas de mesas. Escolha o dia, o horário e garanta sua mesa na hora." />
     <meta name="theme-color" content="#161616" />
     <meta name="robots" content="index, follow" />
     <meta name="format-detection" content="telephone=no" />
@@ -24,29 +24,81 @@
 <body>
     <main id="top">
         <section id="booking-page" class="page-section booking-page-section" aria-labelledby="booking-page-title">
-            <div class="container split-layout">
-                <div class="section-copy">
-                    <p class="section-kicker">Agendamento</p>
-                    <h1 id="booking-page-title">Reserve uma mesa</h1>
-                    <p>Escolha data, horario e quantidade de pessoas para organizar sua visita com antecedencia.</p>
-                </div>
-                <form id="booking-form" class="panel-form">
-                    <label class="field" for="booking-date">
-                        <span>Data</span>
-                        <input id="booking-date" name="date" type="date" required>
-                    </label>
-                    <label class="field" for="booking-time">
-                        <span>Horario</span>
-                        <input id="booking-time" name="time" type="time" min="11:00" max="23:00" required>
-                    </label>
-                    <label class="field" for="booking-guests">
-                        <span>Pessoas</span>
-                        <input id="booking-guests" name="guests" type="number" min="1" max="12" value="2" required>
-                    </label>
-                    <button class="button button-primary" type="submit">Confirmar reserva</button>
-                    <p id="booking-feedback" class="form-feedback" aria-live="polite"></p>
+            <div class="container" id="booking-root">
+                <header class="booking-hero">
+                    <div>
+                        <p class="section-kicker">Agendamento</p>
+                        <h1 id="booking-page-title">Reserve sua mesa</h1>
+                        <p class="booking-intro">Escolha o dia, o tamanho do grupo e um horário livre. A mesa é confirmada na hora, após o pagamento da taxa.</p>
+                    </div>
+                    <span class="secure-pill">🔒 Pagamento simulado</span>
+                </header>
+                <ul class="booking-highlights" id="booking-highlights"></ul>
+
+                <form id="booking-form" class="booking-layout" novalidate>
+                    <div class="booking-main">
+                        <section class="booking-card" aria-labelledby="booking-step-when">
+                            <h2 id="booking-step-when" class="form-section-title"><span aria-hidden="true">1</span>Quando e quantas pessoas?</h2>
+                            <fieldset class="booking-dates" id="booking-dates"><legend>Data</legend></fieldset>
+                            <div class="booking-when">
+                                <label class="field booking-other-date" for="booking-date">
+                                    <span>Outra data</span>
+                                    <input id="booking-date" name="date" type="date" required>
+                                </label>
+                                <div class="field">
+                                    <span id="booking-guests-label">Pessoas</span>
+                                    <div class="booking-stepper" role="group" aria-labelledby="booking-guests-label">
+                                        <button type="button" data-step="-1" aria-label="Diminuir pessoas">−</button>
+                                        <input id="booking-guests" name="guests" type="number" min="1" max="12" value="2" aria-labelledby="booking-guests-label">
+                                        <button type="button" data-step="1" aria-label="Aumentar pessoas">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="booking-card" aria-labelledby="booking-step-time">
+                            <h2 id="booking-step-time" class="form-section-title"><span aria-hidden="true">2</span>Escolha o horário</h2>
+                            <p class="booking-hint" id="booking-slot-hint" aria-live="polite"></p>
+                            <fieldset class="booking-slots" id="booking-slots"><legend class="sr-only">Horário</legend></fieldset>
+                            <p class="booking-legend"><span class="is-available">Livre</span><span class="is-few">Últimas mesas</span><span class="is-full">Lotado</span><span class="booking-legend-hours" id="booking-hours"></span></p>
+                        </section>
+
+                        <section class="booking-card" aria-labelledby="booking-step-contact">
+                            <h2 id="booking-step-contact" class="form-section-title"><span aria-hidden="true">3</span>Seus dados</h2>
+                            <p class="booking-hint" id="booking-login-hint" hidden><a href="login.html">Entre na sua conta</a> para preencher automaticamente.</p>
+                            <div class="booking-contact">
+                                <label class="field" for="booking-name"><span>Nome para a reserva</span><input id="booking-name" name="name" type="text" autocomplete="name" maxlength="80" required></label>
+                                <label class="field" for="booking-phone"><span>Telefone</span><input id="booking-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="15" placeholder="(00) 00000-0000" required></label>
+                            </div>
+                            <fieldset class="booking-occasions" id="booking-occasions"><legend>Ocasião especial <small>(opcional)</small></legend></fieldset>
+                            <label class="field" for="booking-notes">
+                                <span>Observações <small>(opcional)</small></span>
+                                <textarea id="booking-notes" name="notes" rows="3" maxlength="200" placeholder="Ex.: cadeira de bebê, mesa perto da janela, bolo de aniversário..."></textarea>
+                                <small class="booking-counter" id="booking-notes-counter">0/200</small>
+                            </label>
+                        </section>
+
+                        <section class="booking-card" aria-labelledby="booking-step-payment">
+                            <h2 id="booking-step-payment" class="form-section-title"><span aria-hidden="true">4</span>Taxa de reserva</h2>
+                            <fieldset class="payment-options booking-payment-options">
+                                <legend class="sr-only">Forma de pagamento da taxa</legend>
+                                <label class="payment-option"><input type="radio" name="paymentMethod" value="pix"><span class="payment-option-icon" aria-hidden="true">⚡</span><span>Pix</span><small>Aprovação na hora</small></label>
+                                <label class="payment-option"><input type="radio" name="paymentMethod" value="card"><span class="payment-option-icon" aria-hidden="true">💳</span><span>Cartão</span><small>Crédito ou débito</small></label>
+                            </fieldset>
+                            <label class="booking-demo" for="booking-simulate-failure"><input id="booking-simulate-failure" type="checkbox"><span><strong>Simular pagamento recusado</strong><small>Ambiente de demonstração: testa o fluxo de recusa sem bloquear mesa.</small></span></label>
+                        </section>
+                    </div>
+
+                    <aside class="booking-summary" aria-label="Resumo da reserva">
+                        <h2>Resumo</h2>
+                        <dl id="booking-summary-list"></dl>
+                        <p class="booking-summary-note">Abatida da conta no dia da visita.</p>
+                        <button class="button button-primary" type="submit" id="booking-submit">Reservar</button>
+                        <p id="booking-feedback" class="form-feedback" aria-live="polite"></p>
+                    </aside>
                 </form>
             </div>
+            <div class="container booking-confirmation-container" id="booking-confirmation" hidden></div>
         </section>
     </main>
 

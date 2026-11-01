@@ -1,253 +1,285 @@
-// booking.js - lógica de reservas de mesas e persistência local
-import { openModal, closeModal, showToast } from './ui.js';
-import { setButtonLoading } from './ui.js';
-import { sanitizeBookingData } from './security.js';
+// booking.js - reservas da pagina legada (pages-html/reservas.html).
+// Usa os mesmos services e regras da pagina React (src/): mesas, disponibilidade, taxa, pagamento simulado e
+// confirmacao sao identicos nas duas URLs. Todo dado do usuario e renderizado com textContent.
+import { showToast } from './ui.js';
+import { readSession } from '../src/services/authService.js';
+import { getCheckoutDefaults } from '../src/services/profileService.js';
+import {
+  createBooking, getAvailability, getBooking, getBookingConfirmationUrl, getBookingHighlights,
+  getBookingOccasionLabel, getBookingPaymentLabel, getBookingStatusLabel
+} from '../src/services/bookingService.js';
+import {
+  BOOKING_DURATION_MINUTES, BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_MAX_DAYS_AHEAD, BOOKING_NOTES_MAX,
+  BOOKING_OCCASIONS, BOOKING_OPENING, MAX_GUESTS, getUpcomingBookingDates, toLocalDateString
+} from '../src/utils/businessRules.js';
+import { formatCurrency } from '../src/utils/format.js';
 
-const BOOKINGS_STORAGE_KEY = 'fastlanche_bookings';
+const SLOT_HINTS = { available: '', few: 'Últimas mesas', full: 'Lotado', past: 'Encerrado' };
+const state = { date: toLocalDateString(), guests: 2, time: '', occasion: '', slots: [], pending: false };
 
-const bookingRequest = {
-  customerName: '',
-  phone: '',
-  date: '',
-  time: '',
-  guests: 2,
-  status: 'idle',
-  errors: []
-};
+const people = count => `${count} ${count === 1 ? 'pessoa' : 'pessoas'}`;
+const formatShortDate = date => date.split('-').reverse().join('/');
+function formatLongDate(date) {
+  const [year, month, day] = date.split('-').map(Number);
+  const value = new Date(year, month - 1, day);
+  return Number.isNaN(value.getTime()) ? date : value.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+}
 
-const bookings = [];
+function el(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
 
-function isStorageAvailable() {
+function radioCard(className, name, value, checked, onChange, children) {
+  const label = el('label', className);
+  const input = document.createElement('input');
+  input.type = 'radio';
+  input.name = name;
+  input.value = value;
+  input.checked = checked;
+  input.addEventListener('change', onChange);
+  label.append(input, ...children);
+  return { label, input };
+}
+
+function setFeedback(message, status = '') {
+  const feedback = document.getElementById('booking-feedback');
+  feedback.textContent = message;
+  feedback.dataset.status = status;
+  feedback.setAttribute('role', status === 'error' ? 'alert' : 'status');
+}
+
+function renderHighlights() {
+  const list = document.getElementById('booking-highlights');
+  list.replaceChildren(...getBookingHighlights().map(([icon, title, text]) => {
+    const item = el('li');
+    const span = el('span', '', icon);
+    span.setAttribute('aria-hidden', 'true');
+    const body = el('div');
+    body.append(el('strong', '', title), el('small', '', text));
+    item.append(span, body);
+    return item;
+  }));
+}
+
+function renderDates() {
+  const group = document.getElementById('booking-dates');
+  const legend = group.querySelector('legend');
+  const days = getUpcomingBookingDates(new Date(), 7);
+  group.replaceChildren(legend, ...days.map(day => radioCard('booking-date', 'quick-date', day.date, state.date === day.date,
+    () => selectDate(day.date), [el('small', '', day.label), el('strong', '', day.day), el('small', '', day.month)]).label));
+  const otherDate = document.getElementById('booking-date');
+  otherDate.value = state.date;
+  otherDate.closest('.booking-other-date').classList.toggle('is-active', !days.some(day => day.date === state.date));
+}
+
+function renderOccasions() {
+  const group = document.getElementById('booking-occasions');
+  const legend = group.querySelector('legend');
+  group.replaceChildren(legend, ...BOOKING_OCCASIONS.map(([value, label, icon]) => {
+    const iconEl = el('span', '', icon);
+    iconEl.setAttribute('aria-hidden', 'true');
+    return radioCard('booking-chip', 'occasion', value, state.occasion === value, () => { state.occasion = value; renderSummary(); }, [iconEl, document.createTextNode(label)]).label;
+  }));
+}
+
+function renderSlots() {
+  const group = document.getElementById('booking-slots');
+  const legend = group.querySelector('legend');
+  // Horario selecionado que lotou (outra aba, troca de data/pessoas) e desmarcado.
+  const selected = state.slots.find(slot => slot.time === state.time);
+  if (state.time && selected && !['available', 'few'].includes(selected.status)) state.time = '';
+  group.replaceChildren(legend, ...state.slots.map(slot => {
+    const children = [el('strong', '', slot.time)];
+    if (SLOT_HINTS[slot.status]) children.push(el('small', '', SLOT_HINTS[slot.status]));
+    const { label, input } = radioCard(`booking-slot is-${slot.status}`, 'time', slot.time, state.time === slot.time, () => { state.time = slot.time; renderSummary(); }, children);
+    input.disabled = slot.status === 'full' || slot.status === 'past';
+    return label;
+  }));
+  const open = state.slots.filter(slot => slot.status === 'available' || slot.status === 'few').length;
+  const hint = `${formatLongDate(state.date)} · ${people(state.guests)} · ${open ? `${open} ${open === 1 ? 'horário' : 'horários'} com mesa livre` : 'nenhum horário livre neste dia'}`;
+  document.getElementById('booking-slot-hint').textContent = hint.charAt(0).toUpperCase() + hint.slice(1);
+  renderSummary();
+}
+
+function renderSummary() {
+  const selected = state.slots.find(slot => slot.time === state.time);
+  const rows = [
+    ['Data', formatShortDate(state.date)],
+    ['Horário', state.time || 'Escolha um horário'],
+    ['Pessoas', people(state.guests)],
+    ...(state.occasion ? [['Ocasião', getBookingOccasionLabel(state.occasion)]] : []),
+    ['Mesas livres', selected ? String(selected.freeTables) : '—'],
+    ['Taxa de reserva', formatCurrency(BOOKING_FEE), 'booking-summary-total']
+  ];
+  document.getElementById('booking-summary-list').replaceChildren(...rows.map(([term, value, className]) => {
+    const row = el('div', className);
+    row.append(el('dt', '', term), el('dd', '', value));
+    return row;
+  }));
+}
+
+async function refreshSlots() {
+  try { state.slots = await getAvailability(state.date, state.guests); }
+  catch { state.slots = []; }
+  renderSlots();
+}
+
+function selectDate(date) {
+  state.date = date;
+  state.time = '';
+  renderDates();
+  refreshSlots();
+}
+
+function setGuests(value) {
+  state.guests = Math.min(MAX_GUESTS, Math.max(1, Math.floor(Number(value)) || 1));
+  const input = document.getElementById('booking-guests');
+  input.value = state.guests;
+  const [minus, plus] = document.querySelectorAll('.booking-stepper button');
+  minus.disabled = state.guests <= 1;
+  plus.disabled = state.guests >= MAX_GUESTS;
+  refreshSlots();
+}
+
+async function handleSubmit(event) {
+  event.preventDefault();
+  if (state.pending) return;
+  const form = event.currentTarget;
+  const submit = document.getElementById('booking-submit');
+  state.pending = true;
+  submit.disabled = true;
+  submit.textContent = 'Processando...';
+  form.setAttribute('aria-busy', 'true');
+  setFeedback('Processando pagamento da taxa...', 'info');
   try {
-    return typeof window !== 'undefined' && Boolean(window.localStorage);
+    const booking = await createBooking({
+      date: state.date, time: state.time, guests: state.guests, occasion: state.occasion,
+      name: form.elements.name.value, phone: form.elements.phone.value, notes: form.elements.notes.value,
+      paymentMethod: form.querySelector('input[name="paymentMethod"]:checked')?.value || '',
+      simulateFailure: document.getElementById('booking-simulate-failure').checked,
+      accountEmail: readSession()?.email || ''
+    });
+    window.location.href = getBookingConfirmationUrl(booking.bookingNumber);
   } catch (error) {
-    console.warn('LocalStorage indisponível para reservas.', error);
-    return false;
+    const message = error?.message || 'Não foi possível concluir a reserva.';
+    setFeedback(message, 'error');
+    showToast(message, 'error');
+    state.pending = false;
+    submit.disabled = false;
+    submit.textContent = `Pagar ${formatCurrency(BOOKING_FEE)} e reservar`;
+    form.removeAttribute('aria-busy');
+    refreshSlots();
   }
 }
 
-function saveBookings() {
-  if (!isStorageAvailable()) return false;
-  try {
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-    return true;
-  } catch (error) {
-    console.warn('Não foi possível salvar as reservas.', error);
-    return false;
-  }
-}
-
-function loadBookings() {
-  if (!isStorageAvailable()) return bookings;
-  try {
-    const stored = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-    if (!stored) return bookings;
-
-    const parsed = JSON.parse(stored);
-    const safeBookings = Array.isArray(parsed) ? parsed : [];
-
-    bookings.splice(0, bookings.length, ...safeBookings);
-    return bookings;
-  } catch (error) {
-    console.warn('Não foi possível carregar as reservas.', error);
-    bookings.splice(0, bookings.length);
-    return bookings;
-  }
-}
-
-function getLocalDateString() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateBR(dateStr) {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const [year, month, day] = parts;
-  return `${day}/${month}/${year}`;
-}
-
-function validateBooking(dateStr, timeStr, people) {
-  const errors = [];
-  const todayStr = getLocalDateString();
-
-  if (!dateStr) {
-    errors.push('Selecione uma data para a reserva.');
-  } else if (dateStr < todayStr) {
-    errors.push('A data da reserva não pode ser no passado.');
+async function renderConfirmation(reference) {
+  const container = document.getElementById('booking-confirmation');
+  document.getElementById('booking-root').hidden = true;
+  container.hidden = false;
+  container.replaceChildren(el('div', 'empty-state', 'Carregando reserva...'));
+  const booking = await getBooking(reference).catch(() => null);
+  if (!booking) {
+    const empty = el('div', 'empty-state');
+    empty.setAttribute('role', 'alert');
+    const link = el('a', 'button button-primary', 'Fazer uma reserva');
+    link.href = 'reservas.html';
+    empty.append(el('span', 'empty-state-icon', '🪑'), el('span', 'empty-state-text', 'Não encontramos esta reserva.'), link);
+    container.replaceChildren(empty);
+    return;
   }
 
-  if (!timeStr) {
-    errors.push('Selecione um horário para a reserva.');
-  } else if (timeStr < '11:00' || timeStr > '23:00') {
-    errors.push('O horário deve estar entre 11:00 e 23:00.');
-  }
+  const ticket = el('article', 'booking-ticket');
+  const head = el('header', 'booking-ticket-head');
+  const check = el('span', 'booking-ticket-check', '✓');
+  check.setAttribute('aria-hidden', 'true');
+  const titles = el('div');
+  titles.append(el('p', 'section-kicker', `Reserva ${getBookingStatusLabel(booking.status).toLowerCase()}`), el('h1', '', 'Sua mesa está garantida!'));
+  head.append(check, titles);
 
-  const guestsNum = Number(people);
-  if (!people || Number.isNaN(guestsNum) || guestsNum < 1 || guestsNum > 12) {
-    errors.push('O número de pessoas deve ser de 1 a 12.');
-  }
+  const number = el('div', 'booking-ticket-number');
+  number.append(el('span', '', 'Número da reserva'), el('strong', '', booking.bookingNumber));
 
-  bookingRequest.errors = errors;
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-}
-
-function submitBooking(payload) {
-  // Fase 29: Sanitizar dados da reserva
-  const sanitized = sanitizeBookingData(payload);
-
-  const newBooking = {
-    id: Date.now(),
-    date: sanitized.date,
-    time: sanitized.time,
-    guests: sanitized.guests,
-    createdAt: new Date().toISOString()
-  };
-
-  bookings.push(newBooking);
-  saveBookings();
-  return newBooking;
-}
-
-function setFeedback(element, message, status = 'info') {
-  if (!element) return;
-  element.textContent = message;
-  element.dataset.status = status;
-}
-
-function showBookingConfirmationModal(booking) {
-  const formattedDate = formatDateBR(booking.date);
-  const peopleText = booking.guests === 1 ? 'pessoa' : 'pessoas';
-
-  const bodyContent = document.createElement('div');
-  bodyContent.style.display = 'grid';
-  bodyContent.style.gap = '1rem';
-
-  const successIcon = document.createElement('div');
-  successIcon.style.cssText = 'font-size:2.5rem;text-align:center;line-height:1;';
-  successIcon.textContent = '✅';
-
-  const summary = document.createElement('div');
-  summary.style.cssText = 'display:grid;gap:.4rem;';
-
-  const dateInfo = document.createElement('p');
-  dateInfo.innerHTML = `<strong>Data:</strong> ${formattedDate}`;
-
-  const timeInfo = document.createElement('p');
-  timeInfo.innerHTML = `<strong>Horário:</strong> ${booking.time}`;
-
-  const guestsInfo = document.createElement('p');
-  guestsInfo.innerHTML = `<strong>${booking.guests} ${peopleText}</strong>`;
-
-  const confirmationMsg = document.createElement('p');
-  confirmationMsg.style.cssText = 'color:var(--verde);font-weight:700;padding-top:.5rem;border-top:1px solid var(--cinza-200);';
-  confirmationMsg.textContent = 'Sua reserva foi confirmada! Aguardamos sua visita.';
-
-  summary.append(dateInfo, timeInfo, guestsInfo, confirmationMsg);
-  bodyContent.append(successIcon, summary);
-
-  openModal({
-    title: 'Reserva Confirmada!',
-    bodyContent,
-    actions: [
-      {
-        label: 'Fechar',
-        variant: 'button-primary',
-        onClick: closeModal
-      }
-    ]
+  const grid = el('dl', 'booking-ticket-grid');
+  const status = el('span', 'booking-status', getBookingStatusLabel(booking.status));
+  [
+    ['Data', formatLongDate(booking.date)],
+    ['Horário', booking.time],
+    ['Pessoas', people(booking.guests)],
+    ['Mesa', booking.tableId ? `${booking.tableId} · ${booking.tableSeats} lugares` : 'Definida na chegada'],
+    ['Em nome de', booking.name || '—'],
+    ['Status', status],
+    ...(booking.occasion ? [['Ocasião', getBookingOccasionLabel(booking.occasion)]] : []),
+    ...(booking.notes ? [['Observações', booking.notes, 'booking-ticket-wide']] : [])
+  ].forEach(([term, value, className]) => {
+    const row = el('div', className);
+    const dd = el('dd');
+    if (typeof value === 'string') dd.textContent = value; else dd.appendChild(value);
+    row.append(el('dt', '', term), dd);
+    grid.appendChild(row);
   });
+
+  const payment = el('div', 'booking-ticket-payment');
+  payment.append(el('span', '', `Taxa de reserva · ${getBookingPaymentLabel(booking.paymentMethod)}${booking.paymentStatus === 'approved' ? ' · aprovado' : ''}`), el('strong', '', formatCurrency(booking.fee)));
+
+  const note = el('p', 'booking-ticket-note', `O valor da taxa é abatido da sua conta no dia. A mesa fica reservada por ${BOOKING_DURATION_MINUTES} minutos a partir do horário marcado; chegue com até 15 minutos de tolerância.`);
+
+  const actions = el('div', 'booking-ticket-actions');
+  const menu = el('a', 'button button-primary', 'Ver cardápio');
+  menu.href = 'cardapio.html';
+  const again = el('a', 'button button-secondary', 'Fazer outra reserva');
+  again.href = 'reservas.html';
+  actions.append(menu, again);
+
+  ticket.append(head, number, grid, payment, note, actions);
+  container.replaceChildren(ticket);
 }
 
 function setupBooking() {
-  loadBookings();
-
   const form = document.getElementById('booking-form');
-  const dateInput = document.getElementById('booking-date');
-  const feedbackEl = document.getElementById('booking-feedback');
-  const submitBtn = form?.querySelector('button[type="submit"]');
-
-  if (dateInput) {
-    dateInput.min = getLocalDateString();
-  }
-
   if (!form) return;
 
-  form.addEventListener('submit', event => {
-    event.preventDefault();
+  const reference = new URLSearchParams(window.location.search).get('reserva')?.trim();
+  if (reference) { renderConfirmation(reference); return; }
 
-    const formData = new FormData(form);
-    const dateVal = formData.get('date');
-    const timeVal = formData.get('time');
-    const guestsVal = formData.get('guests');
+  const defaults = getCheckoutDefaults() || {};
+  form.elements.name.value = defaults.name || '';
+  form.elements.phone.value = defaults.phone || '';
+  if (['pix', 'card'].includes(defaults.payment)) form.querySelector(`input[name="paymentMethod"][value="${defaults.payment}"]`).checked = true;
+  document.getElementById('booking-login-hint').hidden = Boolean(defaults.name);
 
-    bookingRequest.date = dateVal;
-    bookingRequest.time = timeVal;
-    bookingRequest.guests = Number(guestsVal) || 2;
-    bookingRequest.status = 'processing';
+  const dateInput = document.getElementById('booking-date');
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + BOOKING_MAX_DAYS_AHEAD);
+  dateInput.min = toLocalDateString();
+  dateInput.max = toLocalDateString(maxDate);
+  dateInput.addEventListener('change', () => { if (dateInput.value) selectDate(dateInput.value); });
 
-    setButtonLoading(submitBtn, true, 'Confirmar reserva');
-    setFeedback(feedbackEl, 'Processando reserva...', 'info');
-
-    const validation = validateBooking(dateVal, timeVal, guestsVal);
-
-    if (!validation.isValid) {
-      bookingRequest.status = 'failed';
-      setFeedback(feedbackEl, validation.errors[0], 'error');
-      showToast(validation.errors[0], 'error');
-      setButtonLoading(submitBtn, false);
-      return;
-    }
-
-    try {
-      const payload = {
-        date: dateVal,
-        time: timeVal,
-        guests: guestsVal
-      };
-
-      const booking = submitBooking(payload);
-      bookingRequest.status = 'success';
-
-      form.reset();
-
-      if (dateInput) {
-        dateInput.min = getLocalDateString();
-      }
-
-      const formattedDate = formatDateBR(booking.date);
-      setFeedback(
-        feedbackEl,
-        `Reserva confirmada! Mesa para ${booking.guests} ${booking.guests === 1 ? 'pessoa' : 'pessoas'} em ${formattedDate} às ${booking.time}.`,
-        'success'
-      );
-
-      showBookingConfirmationModal(booking);
-      showToast(`Reserva para ${formattedDate} confirmada!`, 'success', 5000);
-    } catch (error) {
-      bookingRequest.status = 'failed';
-      console.error('Erro ao realizar reserva:', error);
-      setFeedback(feedbackEl, 'Erro interno ao realizar reserva. Tente novamente.', 'error');
-      showToast('Erro ao realizar reserva.', 'error');
-    } finally {
-      setButtonLoading(submitBtn, false);
-    }
+  const guestsInput = document.getElementById('booking-guests');
+  guestsInput.max = String(MAX_GUESTS);
+  guestsInput.addEventListener('change', () => setGuests(guestsInput.value));
+  document.querySelectorAll('.booking-stepper button').forEach(button => {
+    button.addEventListener('click', () => setGuests(state.guests + Number(button.dataset.step)));
   });
+
+  const notes = document.getElementById('booking-notes');
+  const counter = document.getElementById('booking-notes-counter');
+  notes.maxLength = BOOKING_NOTES_MAX;
+  notes.addEventListener('input', () => { counter.textContent = `${notes.value.length}/${BOOKING_NOTES_MAX}`; });
+
+  document.getElementById('booking-hours').textContent = `Entradas de ${BOOKING_OPENING} às ${BOOKING_LAST_SLOT}`;
+  document.getElementById('booking-submit').textContent = `Pagar ${formatCurrency(BOOKING_FEE)} e reservar`;
+  form.addEventListener('submit', handleSubmit);
+  form.addEventListener('input', event => { if (event.target.matches('input, textarea') && form.querySelector('#booking-feedback').dataset.status === 'error') setFeedback(''); });
+  // Reserva feita em outra aba: recalcula a disponibilidade.
+  window.addEventListener('storage', refreshSlots);
+
+  renderHighlights();
+  renderDates();
+  renderOccasions();
+  setGuests(state.guests);
 }
 
-export {
-  bookingRequest,
-  bookings,
-  loadBookings,
-  saveBookings,
-  setupBooking,
-  submitBooking,
-  validateBooking
-};
+export { setupBooking };

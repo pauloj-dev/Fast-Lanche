@@ -29,7 +29,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 35 | Checkout | Concluída | Comprovante React, fluxo de conclusão e modelo de pedido completo |
 | 36 | Login / Sign In | Concluída | Autenticação estática integrada ao shell React |
 | 37 | Perfil avançado | Concluída | Perfil React protegido, preferências e histórico |
-| 38 | Reservas avançadas | Parcial | Disponibilidade, pagamento simulado e confirmação |
+| 38 | Reservas avançadas | Concluída | Disponibilidade, pagamento simulado e confirmação |
 | 39 | Feedbacks avançados | Parcial | Feedback vinculado a produtos com busca e filtros |
 | 40 | Segurança | Parcial | Validação e sanitização compartilhadas nos fluxos React |
 | 41 | Otimização e refinamento | Parcial | Serviços, estados de UI e convenções React consistentes |
@@ -56,7 +56,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 │   ├── receipt.html               # Comprovante do pedido
 │   ├── login.html                 # Login e cadastro
 │   ├── perfil.html                # Perfil protegido e histórico de pedidos
-│   ├── reservas.html              # Reservas
+│   ├── reservas.html              # Reservas (?reserva=RS-... mostra a confirmação)
 │   └── feedbacks.html             # Feedbacks
 ├── src/
 │   ├── main.jsx                   # entrypoint React
@@ -96,7 +96,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Cardápio: `src/services/menuService.js` e `src/components/ProductCard.jsx`.
 - Pedido: `src/services/orderService.js`. A chave `fastlanche_orders` é compartilhada com o legado (admin, fila e acompanhamento): os status persistidos são os rótulos de `js/order-tracking.js` (`Pedido recebido`, `Pagamento confirmado`...) e pedidos de outras páginas são regravados sem alteração.
 - Linhas do carrinho: identificadas por `cartItemId` (mesmo contrato de `js/cart.js`), pois o mesmo produto pode ter linhas com personalizações diferentes.
-- Reserva: `src/services/bookingService.js`.
+- Reserva: `src/services/bookingService.js` (`getAvailability`, `createBooking`, `getBooking`). A chave `fastlanche_bookings` é compartilhada com `js/booking.js`: reservas legadas (sem mesa) contam na capacidade e são regravadas sem alteração.
 - Feedback: `src/services/feedbackService.js`.
 - Sessão e contas: `src/services/authService.js` é o único ponto que lê/grava `fastlanche_users`, `fastlanche_session` e `fastlanche_user_profile`; o `Header` usa `getAccount()`.
 - Perfil: `src/services/profileService.js` (validação, avatar, preferências, histórico e dados do checkout). Grava pela função `saveAccountProfile` do `authService`.
@@ -227,13 +227,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 38 - RESERVAS AVANÇADAS (PARCIAL)
+## FASE 38 - RESERVAS AVANÇADAS (CONCLUÍDA)
 
-### Já entregue
-
-`src/pages/BookingPage.jsx` valida data, horário e número de pessoas e persiste uma reserva por `bookingService`.
-
-### Trabalho restante
+### Escopo
 
 - Definir em `src/utils/businessRules.js` a capacidade total de mesas, capacidade por mesa, horários e taxa de reserva.
 - Evoluir `bookingService` para consultar reservas persistidas por data e horário e calcular mesas disponíveis.
@@ -243,12 +239,50 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Gerar número de reserva estável e exibir confirmação com mesa alocada, pessoas, valor, pagamento e status.
 - Tratar concorrência entre abas por recarga dos dados antes de confirmar.
 
+### Entregue nesta fase
+
+- **Regras** (`businessRules.js`):
+  - `BOOKING_TABLES`: 16 mesas e 78 lugares (4×2, 6×4, 3×6, 2×8 e 1×12).
+  - Horários a cada 30 min, das 11:00 às 22:00 (última entrada, pois o restaurante fecha às 23:00), com até 60 dias de antecedência.
+  - Cada reserva ocupa uma mesa por 90 min.
+  - Taxa fixa de R$ 20,00, abatida da conta.
+  - Funções puras: `validateBooking` (também rejeita horário que já passou no dia), `validateBookingContact`, `bookingsOverlap`, `getOccupiedTables`, `allocateTable` (menor mesa livre que comporta o grupo) e `getDayAvailability` (livre, últimas mesas, lotado ou encerrado).
+- **Reservas legadas:** registros sem mesa, gravados por `js/booking.js`, recebem virtualmente a menor mesa que os comporta, então continuam ocupando capacidade.
+- **Service** (`bookingService.js`): o fluxo é validar → conferir mesa → pagamento simulado (`simulateBookingPayment`) → recarregar e conferir de novo → gravar.
+  - Pagamento recusado, horário lotado ou entrada inválida não gravam nada.
+  - Se outra aba lotar o horário durante o pagamento, a reserva é recusada com estorno simulado.
+  - Número estável no formato `RS-AAAAMMDD-XXXX`.
+  - A reserva guarda mesa, taxa, pagamento, status `confirmed` e `userProfileId`.
+  - Os dados lidos do armazenamento são normalizados, e JSON corrompido não quebra o fluxo.
+- **Página** (`BookingPage.jsx`):
+  - Passos: data e seletor de pessoas → grade de horários com disponibilidade → dados de contato (pré-preenchidos pelo perfil) → taxa (Pix ou cartão), com uma opção de demonstração para simular recusa.
+  - Resumo lateral com mesas livres e o valor da taxa.
+  - Os horários são recalculados ao trocar data ou pessoas e quando outra aba grava uma reserva (evento `storage`). Um horário selecionado que lota é desmarcado.
+  - A confirmação usa `reservas.html?reserva=RS-...`, com número, data, horário, pessoas, mesa, nome, status, forma de pagamento e taxa, e pode ser recarregada.
+
+### Evidência
+
+- **Testes:** `tests/test-booking.mjs` tem 9 testes. Eles cobrem mesas, horários e taxa; data passada, horário fora do expediente ou já passado, grupo acima de 12 e limite de antecedência; alocação e janela de 90 min; disponibilidade lotada, com poucas mesas e encerrada; reserva aprovada recarregável; recusa e entrada inválida sem gravação; horário lotado; lotação por outra aba durante o pagamento; reservas legadas preservadas; JSON corrompido. `npm test`: 48/48.
+- **Navegador** (`npm run build` + `npm run preview`):
+  - Os horários já passados no dia aparecem como encerrados.
+  - Uma reserva para 12 pessoas com Pix gerou a confirmação com a mesa M16, que continuou disponível após recarregar.
+  - Para outro grupo de 12, as 19:00–21:00 ficaram lotadas e desabilitadas.
+  - O envio sem forma de pagamento e o pagamento recusado não gravaram reserva.
+  - Uma reserva feita numa segunda aba marcou o horário como lotado na primeira, sem recarregar.
+  - Sem overflow em 375 px e sem erros no console.
+
 ### Critérios de aceite
 
 - Data passada, horário fora do expediente e grupo acima da capacidade são rejeitados.
 - Horários lotados aparecem indisponíveis e não podem ser confirmados.
 - Pagamento recusado não bloqueia mesa nem cria reserva.
 - Reserva aprovada persiste e pode ser consultada após recarregar.
+
+### Refinamento visual (após a fase)
+
+- Topo com destaques (`getBookingHighlights`), faixa com os próximos 7 dias (`getUpcomingBookingDates`) além do calendário, ocasião especial (`BOOKING_OCCASIONS`) e observações de até 200 caracteres, que são sanitizadas e aparecem no comprovante.
+- `pages-html/reservas.html` passou a usar o mesmo sistema: `js/booking.js` importa `bookingService`, `profileService` e as regras de `src/` (módulos JS puros, que funcionam com ou sem Vite) e monta a página com `textContent`. As duas URLs têm o mesmo fluxo, layout e dados; uma reserva feita numa aparece na outra.
+- Testado no navegador: reserva pela página legada (6 pessoas, aniversário, observação com HTML guardada como texto) consultada também pela página React.
 
 ---
 
