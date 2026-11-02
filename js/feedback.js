@@ -2,19 +2,19 @@
 // Usa o mesmo service e as mesmas regras da pagina React (src/): elegibilidade por pedido entregue, busca, filtros
 // e medias sao identicos nas duas URLs. Todo dado do usuario e renderizado com textContent.
 import { showToast } from './ui.js';
-import { getFeedbacks, getReviewContext, publishFeedback } from '../src/services/feedbackService.js';
+import { FEEDBACK_STORAGE_KEY, getFeedbacks, getReviewContext, publishFeedback } from '../src/services/feedbackService.js';
 import {
-  FEEDBACK_LIMITS, FEEDBACK_SORTS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
+  FEEDBACK_LIMITS, FEEDBACK_SORTS, RATING_LABELS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
 } from '../src/utils/businessRules.js';
-import { formatDateTime } from '../src/utils/format.js';
+import { formatAverage, formatDateTime, plural } from '../src/utils/format.js';
+import { ORDER_STORAGE_KEY } from '../src/services/orderService.js';
+import { SESSION_KEY } from '../src/services/authService.js';
+import { subscribeToStorage } from '../src/services/storage/storageEvents.js';
 import { toUserMessage } from '../src/utils/errors.js';
 
-const RATING_LABELS = { 1: 'Péssimo', 2: 'Ruim', 3: 'Regular', 4: 'Muito bom', 5: 'Excelente' };
 const EMPTY_FILTERS = { query: '', productKey: '', rating: 0, sort: 'recent' };
 const state = { list: [], context: { account: null, eligible: [] }, filters: { ...EMPTY_FILTERS }, form: { selected: [], rating: 0, comment: '' }, pending: false };
 
-const formatAverage = value => value.toFixed(1).replace('.', ',');
-const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
 function el(tag, className, text) {
   const element = document.createElement(tag);
@@ -306,7 +306,7 @@ function setupFeedback() {
   document.getElementById('feedback-product').addEventListener('change', event => setFilter({ productKey: event.target.value }));
   document.getElementById('feedback-search').addEventListener('input', event => setFilter({ query: event.target.value }));
   // Outra aba avaliou, entregou um pedido ou mudou a sessao: recarrega tudo.
-  window.addEventListener('storage', load);
+  subscribeToStorage([FEEDBACK_STORAGE_KEY, ORDER_STORAGE_KEY, SESSION_KEY], load);
   load();
 }
 

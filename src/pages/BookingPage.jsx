@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FormFeedback } from '../components/FormFeedback.jsx';
 import { getLoginUrl, readSession } from '../services/authService.js';
 import { getAccessMessage } from '../utils/access.js';
 import { toUserMessage } from '../utils/errors.js';
@@ -7,37 +8,30 @@ import {
   createBooking, getAvailability, getBookingForViewer, getBookingHighlights, getBookingConfirmationUrl, getBookingOccasionLabel, getBookingPaymentLabel, getBookingStatusLabel
 } from '../services/bookingService.js';
 import {
-  BOOKING_DURATION_MINUTES, BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_MAX_DAYS_AHEAD, BOOKING_NOTES_MAX, BOOKING_OCCASIONS, BOOKING_OPENING,
+  BOOKING_DURATION_MINUTES, BOOKING_SLOT_LABELS, BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_MAX_DAYS_AHEAD, BOOKING_NOTES_MAX, BOOKING_OCCASIONS, BOOKING_OPENING,
   MAX_GUESTS, getUpcomingBookingDates, toLocalDateString
 } from '../utils/businessRules.js';
-import { formatCurrency as currency } from '../utils/format.js';
+import { formatCurrency as currency, formatPeople as people, formatShortDate, formatWeekdayDate as formatLongDate } from '../utils/format.js';
+import { BOOKING_PAYMENT_METHODS, getPaymentOptions } from '../data/paymentMethods.js';
+import { BOOKING_STORAGE_KEY } from '../services/bookingService.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
+import { EmptyState, ErrorState, LoadingState } from '../components/AsyncState.jsx';
 
-const PAYMENT_OPTIONS = [['pix', '⚡', 'Pix', 'Aprovação na hora'], ['card', '💳', 'Cartão', 'Crédito ou débito']];
-const SLOT_HINTS = { available: '', few: 'Últimas mesas', full: 'Lotado', past: 'Encerrado' };
+const EMPTY_SLOTS = [];
 
-function formatLongDate(date) {
-  const [year, month, day] = date.split('-').map(Number);
-  const value = new Date(year, month - 1, day);
-  return Number.isNaN(value.getTime()) ? date : value.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-}
-const formatShortDate = date => date.split('-').reverse().join('/');
-const people = count => `${count} ${count === 1 ? 'pessoa' : 'pessoas'}`;
+const PAYMENT_OPTIONS = getPaymentOptions(BOOKING_PAYMENT_METHODS).map(method => [method.value, method.icon, method.label, method.hint]);
+const SLOT_HINTS = BOOKING_SLOT_LABELS;
+
 export function BookingHighlights() {
   return <ul className="booking-highlights">{getBookingHighlights().map(([icon, title, text]) => <li key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{text}</small></div></li>)}</ul>;
 }
 
 function BookingConfirmation({ reference }) {
-  const [state, setState] = useState({ loading: true, booking: null });
-  useEffect(() => {
-    let active = true;
-    getBookingForViewer(reference)
-      .then(({ access, booking }) => { if (active) setState({ loading: false, booking, access }); })
-      .catch(() => { if (active) setState({ loading: false, booking: null, access: 'not_found' }); });
-    return () => { active = false; };
-  }, [reference]);
-  if (state.loading) return <div className="empty-state" role="status">Carregando reserva...</div>;
-  if (!state.booking) return <div className="empty-state" role="alert"><span className="empty-state-icon">🪑</span><span className="empty-state-text">{getAccessMessage(state.access, 'booking')}</span>{state.access === 'login_required' || state.access === 'forbidden' ? <a className="button button-primary" href={getLoginUrl('reservas.html')}>Entrar na conta</a> : <a className="button button-primary" href="reservas.html">Fazer uma reserva</a>}</div>;
-  const { booking } = state;
+  const confirmation = useAsyncData(() => getBookingForViewer(reference), [reference]);
+  if (confirmation.status === 'loading') return <LoadingState text="Carregando reserva..."/>;
+  if (confirmation.status === 'error') return <ErrorState text="Não foi possível carregar a reserva." onRetry={confirmation.reload}/>;
+  const { access, booking } = confirmation.data;
+  if (!booking) return <EmptyState icon="🪑" text={getAccessMessage(access, 'booking')}>{access === 'login_required' || access === 'forbidden' ? <a className="button button-primary" href={getLoginUrl('reservas.html')}>Entrar na conta</a> : <a className="button button-primary" href="reservas.html">Fazer uma reserva</a>}</EmptyState>;
   return <article className="booking-ticket" aria-labelledby="booking-ticket-title">
     <header className="booking-ticket-head">
       <span className="booking-ticket-check" aria-hidden="true">✓</span>
@@ -71,21 +65,12 @@ export function BookingPage() {
   const [form, setForm] = useState({ date: today, guests: 2, time: '', name: defaults.name || '', phone: defaults.phone || '', paymentMethod: ['pix', 'card'].includes(defaults.payment) ? defaults.payment : '', occasion: '', notes: '', simulateFailure: false });
   const quickDates = useMemo(() => getUpcomingBookingDates(new Date(), 7), []);
   const isQuickDate = quickDates.some(day => day.date === form.date);
-  const [slots, setSlots] = useState({ loading: true, list: [] });
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState({ text: '', status: '' });
 
-  // Disponibilidade recalculada ao trocar data/pessoas e quando outra aba grava uma reserva.
-  useEffect(() => {
-    if (reference) return undefined;
-    let active = true;
-    const load = () => getAvailability(form.date, form.guests)
-      .then(list => { if (active) setSlots({ loading: false, list }); })
-      .catch(() => { if (active) setSlots({ loading: false, list: [] }); });
-    load();
-    window.addEventListener('storage', load);
-    return () => { active = false; window.removeEventListener('storage', load); };
-  }, [reference, form.date, form.guests]);
+  // Disponibilidade recalculada ao trocar data/pessoas e quando uma reserva e gravada (nesta ou em outra aba).
+  const availability = useAsyncData(() => (reference ? [] : getAvailability(form.date, form.guests)), [reference, form.date, form.guests], [BOOKING_STORAGE_KEY]);
+  const slots = { loading: availability.status === 'loading', list: availability.data || EMPTY_SLOTS };
 
   // Horario escolhido que deixou de estar disponivel (outra aba, troca de data/pessoas) e desmarcado.
   useEffect(() => {
@@ -112,7 +97,7 @@ export function BookingPage() {
       setFeedback({ text: toUserMessage(error, 'Não foi possível concluir a reserva.'), status: 'error' });
       setPending(false);
       // Recarrega os horarios: o erro pode ter sido lotacao.
-      getAvailability(form.date, form.guests).then(list => setSlots({ loading: false, list })).catch(() => {});
+      availability.reload({ background: true });
     }
   }
 
@@ -145,7 +130,7 @@ export function BookingPage() {
         <section className="booking-card" aria-labelledby="booking-step-time">
           <h2 id="booking-step-time" className="form-section-title"><span aria-hidden="true">2</span>Escolha o horário</h2>
           <p className="booking-hint">{formatLongDate(form.date)} · {people(form.guests)} · {slots.loading ? 'consultando mesas...' : openSlots ? `${openSlots} ${openSlots === 1 ? 'horário' : 'horários'} com mesa livre` : 'nenhum horário livre neste dia'}</p>
-          {slots.loading ? <div className="booking-slots-skeleton" role="status" aria-label="Carregando horários"/> :
+          {availability.status === 'error' ? <ErrorState text="Não foi possível consultar os horários." onRetry={availability.reload}/> : slots.loading ? <div className="booking-slots-skeleton" role="status" aria-label="Carregando horários"/> :
             <fieldset className="booking-slots"><legend className="sr-only">Horário</legend>{slots.list.map(slot => {
               const disabled = slot.status === 'full' || slot.status === 'past';
               return <label key={slot.time} className={`booking-slot is-${slot.status}`}>
@@ -188,7 +173,7 @@ export function BookingPage() {
         </dl>
         <p className="booking-summary-note">Abatida da conta no dia da visita.</p>
         <button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Processando...' : `Pagar ${currency(BOOKING_FEE)} e reservar`}</button>
-        <p id="booking-feedback" className="form-feedback" data-status={feedback.status} role={feedback.status === 'error' ? 'alert' : undefined} aria-live="polite">{feedback.text}</p>
+        <FormFeedback id="booking-feedback" feedback={feedback}/>
       </aside>
     </form>
   </div></section></main>;

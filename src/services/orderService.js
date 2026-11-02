@@ -1,5 +1,7 @@
 import { FIELD_LIMITS, calculateDeliveryFee, calculateSubtotal, calculateTotal, normalizeEmail, sanitizeDeep, sanitizeText } from '../utils/businessRules.js';
 import { AppError } from '../utils/errors.js';
+import { createOrderNumber } from '../utils/ids.js';
+import { CHECKOUT_PAYMENT_METHODS, getPaymentLabel } from '../data/paymentMethods.js';
 import { readSession } from './authService.js';
 import { readArray, readText, writeJSON, writeText } from './storage/safeStorage.js';
 
@@ -10,7 +12,6 @@ export const LAST_ORDER_REFERENCE_KEY = 'fastlanche_last_order';
 export const ORDER_STATUS = Object.freeze({ RECEIVED: 'Pedido recebido', PAYMENT_CONFIRMED: 'Pagamento confirmado', PREPARING: 'Preparando pedido', OUT_FOR_DELIVERY: 'Saiu para entrega', DELIVERED: 'Entregue' });
 const LEGACY_STATUS_SLUGS = Object.freeze({ received: ORDER_STATUS.RECEIVED, 'payment-confirmed': ORDER_STATUS.PAYMENT_CONFIRMED, preparing: ORDER_STATUS.PREPARING, 'out-for-delivery': ORDER_STATUS.OUT_FOR_DELIVERY, delivered: ORDER_STATUS.DELIVERED });
 const ORDER_STATUS_CLASSES = Object.freeze({ [ORDER_STATUS.RECEIVED]: 'received', [ORDER_STATUS.PAYMENT_CONFIRMED]: 'payment', [ORDER_STATUS.PREPARING]: 'preparing', [ORDER_STATUS.OUT_FOR_DELIVERY]: 'out', [ORDER_STATUS.DELIVERED]: 'delivered' });
-export const PAYMENT_LABELS = Object.freeze({ pix: 'Pix', card: 'Cartao de credito/debito', cash: 'Dinheiro' });
 
 // Texto vindo do formulario ou do localStorage: sanitizado e limitado (numeros de pedidos legados viram texto).
 function safeText(value, fallback = '', maxLength = FIELD_LIMITS.address) {
@@ -19,9 +20,7 @@ function safeText(value, fallback = '', maxLength = FIELD_LIMITS.address) {
 }
 const MAX_ITEM_PRICE = 10000;
 const MAX_ITEM_QUANTITY = 99;
-const PAYMENT_METHODS = Object.keys({ pix: 1, card: 1, cash: 1 });
 function safeNumber(value, fallback = 0) { const number = Number(value); return Number.isFinite(number) ? Math.max(number, 0) : fallback; }
-function createOrderNumber() { return `FL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`; }
 
 export function normalizeOrder(input) {
   if (!input || typeof input !== 'object') return null;
@@ -47,7 +46,7 @@ export function normalizeOrder(input) {
   const deliveryFee = calculateDeliveryFee(subtotal);
   const status = normalizeStatus(input.status);
   const rawPaymentMethod = safeText(input.paymentMethod || input.payment?.method, '', 20);
-  const paymentMethod = PAYMENT_METHODS.includes(rawPaymentMethod) ? rawPaymentMethod : '';
+  const paymentMethod = CHECKOUT_PAYMENT_METHODS.includes(rawPaymentMethod) ? rawPaymentMethod : '';
   const paymentStatus = ['approved', 'pending', 'declined'].includes(input.paymentStatus || input.payment?.status) ? (input.paymentStatus || input.payment?.status) : 'pending';
   const orderNumber = safeText(input.orderNumber || input.id, '', FIELD_LIMITS.reference);
   if (!orderNumber) return null;
@@ -110,6 +109,6 @@ export function setLastOrderReference(orderNumber) {
   return reference;
 }
 export function getLastOrderReference() { return safeText(readText(LAST_ORDER_REFERENCE_KEY, ''), '', FIELD_LIMITS.reference); }
-export function getPaymentLabel(method) { return PAYMENT_LABELS[method] || 'Nao informado'; }
+export { getPaymentLabel };
 export function getOrderStatusLabel(status) { return normalizeStatus(status); }
 export function getOrderStatusClass(status) { return ORDER_STATUS_CLASSES[normalizeStatus(status)]; }

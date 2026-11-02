@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getMenuItems, isRestaurantClosed } from '../services/menuService.js';
+import { useMemo, useState } from 'react';
+import { MENU_OVERRIDES_KEY, RESTAURANT_STATUS_KEY, getMenuItems, isRestaurantClosed } from '../services/menuService.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
+import { ErrorState, LoadingState } from '../components/AsyncState.jsx';
+
+const EMPTY_ITEMS = [];
 import { ProductCard } from '../components/ProductCard.jsx';
 
 const CATEGORIES = [
@@ -9,17 +13,12 @@ const CATEGORIES = [
 const normalize = value => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function MenuPage() {
-  const [menuItems, setMenuItems] = useState([]);
+  // Admin legado em outra aba pode fechar o restaurante ou editar produtos: recarrega em segundo plano.
+  const menu = useAsyncData(async () => ({ items: await getMenuItems(), closed: isRestaurantClosed() }), [], [RESTAURANT_STATUS_KEY, MENU_OVERRIDES_KEY]);
+  const menuItems = menu.data?.items || EMPTY_ITEMS;
+  const closed = Boolean(menu.data?.closed);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [closed, setClosed] = useState(false);
-  useEffect(() => {
-    getMenuItems().then(setMenuItems);
-    const check = () => setClosed(isRestaurantClosed());
-    check();
-    window.addEventListener('storage', check);
-    return () => window.removeEventListener('storage', check);
-  }, []);
   const searchMatches = useMemo(() => {
     const term = normalize(searchTerm.trim());
     return menuItems.filter(item => item.active && normalize(`${item.name} ${item.description}`).includes(term));
@@ -34,6 +33,6 @@ export function MenuPage() {
       <button className="chip" type="button" aria-pressed={activeFilter === 'all'} onClick={() => setActiveFilter('all')}>Todos <span className="chip-count">{searchMatches.length}</span></button>
       {CATEGORIES.map(([category, icon]) => <button key={category} className="chip" type="button" aria-pressed={activeFilter === category} onClick={() => setActiveFilter(category)}><span aria-hidden="true">{icon}</span>{category} <span className="chip-count">{countFor(category)}</span></button>)}
     </div>
-    <div id="menu-items" className="cards-grid" aria-live="polite">{closed ? <div className="restaurant-closed-banner"><span className="restaurant-closed-icon">🕐</span><div className="restaurant-closed-text"><strong>Restaurante fechado no momento</strong><span>Volte mais tarde para fazer seu pedido.</span></div></div> : visibleItems.length ? visibleItems.map(item => <ProductCard key={item.id} item={item}/>) : <div className="empty-state menu-empty"><span className="empty-state-icon">🔎</span><span className="empty-state-text">Nenhum item encontrado para essa busca.</span>{(searchTerm || activeFilter !== 'all') && <button className="button button-secondary button-small" type="button" onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}>Limpar filtros</button>}</div>}</div>
+    <div id="menu-items" className="cards-grid" aria-live="polite" aria-busy={menu.status === 'loading'}>{menu.status === 'loading' ? <LoadingState text="Carregando o cardápio..." className="menu-empty"/> : menu.status === 'error' ? <ErrorState text="Não foi possível carregar o cardápio." onRetry={menu.reload} className="menu-empty"/> : closed ? <div className="restaurant-closed-banner"><span className="restaurant-closed-icon">🕐</span><div className="restaurant-closed-text"><strong>Restaurante fechado no momento</strong><span>Volte mais tarde para fazer seu pedido.</span></div></div> : visibleItems.length ? visibleItems.map(item => <ProductCard key={item.id} item={item}/>) : <div className="empty-state menu-empty"><span className="empty-state-icon">🔎</span><span className="empty-state-text">Nenhum item encontrado para essa busca.</span>{(searchTerm || activeFilter !== 'all') && <button className="button button-secondary button-small" type="button" onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}>Limpar filtros</button>}</div>}</div>
   </div></section></main>;
 }

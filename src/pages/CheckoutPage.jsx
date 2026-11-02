@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FormFeedback } from '../components/FormFeedback.jsx';
 import { toUserMessage } from '../utils/errors.js';
 import { useCart } from '../context/CartContext.jsx';
 import { readSession } from '../services/authService.js';
@@ -7,8 +8,9 @@ import { getReceiptUrl, placeOrder } from '../services/checkoutService.js';
 import { getProductImageUrl } from '../components/ProductImage.jsx';
 import { FreeDeliveryBar } from './CartPage.jsx';
 import { formatCurrency as currency } from '../utils/format.js';
+import { CHECKOUT_PAYMENT_METHODS, getPaymentOptions } from '../data/paymentMethods.js';
 
-const PAYMENT_OPTIONS = [['pix', '⚡', 'Pix', 'Aprovação na hora'], ['card', '💳', 'Cartão', 'Crédito ou débito'], ['cash', '💵', 'Dinheiro', 'Pague na entrega']];
+const PAYMENT_OPTIONS = getPaymentOptions(CHECKOUT_PAYMENT_METHODS).map(method => [method.value, method.icon, method.label, method.hint]);
 const EMPTY_FIELDS = { name: '', email: '', phone: '', address: '', payment: '' };
 
 export function CheckoutPage() {
@@ -56,7 +58,7 @@ export function CheckoutPage() {
         <label className="field field-full" htmlFor="checkout-address"><span>Endereço de entrega</span><input id="checkout-address" name="address" type="text" autoComplete="street-address" minLength="8" placeholder="Rua, número, bairro" value={profileFields.address} onChange={setField('address')} required /></label>
         <h2 className="form-section-title"><span aria-hidden="true">3</span>Pagamento</h2>
         <fieldset className="payment-options"><legend className="sr-only">Forma de pagamento</legend>{PAYMENT_OPTIONS.map(([value, icon, label, hint]) => <label key={value} className="payment-option"><input type="radio" name="payment" value={value} checked={profileFields.payment === value} onChange={setField('payment')} required/><span className="payment-option-icon" aria-hidden="true">{icon}</span><span>{label}</span><small>{hint}</small></label>)}</fieldset>
-        <div className="field-full form-actions"><button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Processando pagamento...' : `Pagar ${currency(cart.total)}`}</button><p id="checkout-feedback" className="form-feedback" data-status={feedback.status} aria-live="polite">{feedback.text}</p></div>
+        <div className="field-full form-actions"><button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Processando pagamento...' : `Pagar ${currency(cart.total)}`}</button><FormFeedback id="checkout-feedback" feedback={feedback}/></div>
       </form>
     </div><aside className="checkout-page-summary" aria-label="Resumo do pedido"><h2 className="form-section-title">Seu pedido</h2><ul id="checkout-items" className="checkout-items-list">{cart.items.map(item => <li className="checkout-item" key={item.cartItemId} data-category={item.category}><img className="checkout-item-thumb" src={getProductImageUrl(item)} alt=""/><span className="checkout-item-name">{item.quantity}× {item.name}</span><span className="checkout-item-price">{currency(item.price * item.quantity)}</span></li>)}</ul><FreeDeliveryBar subtotal={cart.subtotal}/><dl className="cart-summary"><div><dt>Subtotal</dt><dd id="checkout-subtotal">{currency(cart.subtotal)}</dd></div><div><dt>Entrega</dt><dd id="checkout-fee">{cart.deliveryFee ? currency(cart.deliveryFee) : 'Grátis'}</dd></div><div className="summary-total"><dt>Total</dt><dd id="checkout-total">{currency(cart.total)}</dd></div></dl><a className="button button-secondary button-small" href="carrinho.html">Editar carrinho</a></aside></div>}
   </div></section></main>;

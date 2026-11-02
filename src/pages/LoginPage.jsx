@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { FormFeedback } from '../components/FormFeedback.jsx';
 import { toUserMessage } from '../utils/errors.js';
+import { subscribeToStorage } from '../services/storage/storageEvents.js';
 import { ProductImage } from '../components/ProductImage.jsx';
-import { AUTH_CHANGE_EVENT, getAccount, getSafeRedirect, login, logout, register } from '../services/authService.js';
+import { PROFILE_KEY, SESSION_KEY, getAccount, getSafeRedirect, login, logout, register } from '../services/authService.js';
 
 const REDIRECT_DELAY_MS = 600;
 
@@ -18,15 +20,11 @@ export function LoginPage() {
   const [account, setAccount] = useState(getAccount);
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState({ text: '', status: '' });
-  const firstField = useRef(null);
   const redirect = getSafeRedirect(window.location.search);
   useEffect(() => { setFeedback({ text: '', status: '' }); }, [mode]);
   // Login/logout feito no Header ou em outra aba atualiza esta tela.
   useEffect(() => {
-    const refresh = () => setAccount(getAccount());
-    window.addEventListener('storage', refresh);
-    window.addEventListener(AUTH_CHANGE_EVENT, refresh);
-    return () => { window.removeEventListener('storage', refresh); window.removeEventListener(AUTH_CHANGE_EVENT, refresh); };
+    return subscribeToStorage([SESSION_KEY, PROFILE_KEY], () => setAccount(getAccount()));
   }, []);
 
   async function submit(event) {
@@ -43,7 +41,6 @@ export function LoginPage() {
     } catch (error) {
       setFeedback({ text: toUserMessage(error, 'Nao foi possivel concluir. Tente novamente.'), status: 'error' });
       setPending(false);
-      firstField.current?.focus();
     }
   }
 
@@ -68,12 +65,12 @@ export function LoginPage() {
     <div className="login-panels"><div className="login-panel active" id="login-panel" role="tabpanel" aria-labelledby={isSignup ? 'show-signup' : 'show-login'}>
       {/* key: troca de aba remonta o formulario e limpa os campos (inclusive senhas). */}
       <form key={mode} id={isSignup ? 'signup-form' : 'login-form'} className="form-grid" onSubmit={submit} aria-busy={pending} noValidate>
-        {isSignup && <label className="field" htmlFor="signup-name"><span>Nome completo</span><input ref={firstField} id="signup-name" name="name" type="text" autoComplete="name" minLength="3" maxLength="80" required placeholder="Seu nome"/></label>}
-        <label className="field" htmlFor="auth-email"><span>E-mail</span><input ref={isSignup ? undefined : firstField} id="auth-email" name="email" type="email" autoComplete="email" maxLength="120" required placeholder="seu@email.com"/></label>
+        {isSignup && <label className="field" htmlFor="signup-name"><span>Nome completo</span><input id="signup-name" name="name" type="text" autoComplete="name" minLength="3" maxLength="80" required placeholder="Seu nome"/></label>}
+        <label className="field" htmlFor="auth-email"><span>E-mail</span><input id="auth-email" name="email" type="email" autoComplete="email" maxLength="120" required placeholder="seu@email.com"/></label>
         <label className="field" htmlFor="auth-password"><span>Senha</span><input id="auth-password" name="password" type="password" autoComplete={isSignup ? 'new-password' : 'current-password'} minLength="6" required placeholder="Mínimo 6 caracteres"/></label>
         {isSignup && <label className="field" htmlFor="signup-confirm-password"><span>Confirmar senha</span><input id="signup-confirm-password" name="confirm-password" type="password" autoComplete="new-password" minLength="6" required placeholder="Repita a senha"/></label>}
         {isSignup && <label className="field" htmlFor="signup-phone"><span>Telefone (opcional)</span><input id="signup-phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" maxLength="15" placeholder="(00) 00000-0000"/></label>}
-        <div className="field-full form-actions"><button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Aguarde...' : isSignup ? 'Criar conta' : 'Entrar'}</button><p id="auth-feedback" className="form-feedback" data-status={feedback.status} role={feedback.status === 'error' ? 'alert' : undefined} aria-live="polite">{feedback.text}</p></div>
+        <div className="field-full form-actions"><button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Aguarde...' : isSignup ? 'Criar conta' : 'Entrar'}</button><FormFeedback id="auth-feedback" feedback={feedback}/></div>
       </form>
       <p className="login-switch">{isSignup ? 'Já tem conta? ' : 'Ainda não tem conta? '}<button className="link-button" type="button" onClick={() => setMode(isSignup ? 'login' : 'signup')} disabled={pending}>{isSignup ? 'Fazer login' : 'Cadastre-se'}</button></p>
       <p className="form-hint">Ambiente de demonstração: os dados ficam somente neste navegador. Não use uma senha real.</p>

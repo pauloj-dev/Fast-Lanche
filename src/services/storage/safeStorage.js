@@ -3,6 +3,7 @@
 // - JSON invalido: devolve o valor padrao, sem lancar e sem apagar o dado (paginas legadas podem ler a mesma chave).
 // - Cota excedida: AppError com codigo 'quota' e mensagem amigavel; o valor anterior permanece intacto.
 import { AppError, reportError } from '../../utils/errors.js';
+import { notifyStorageChange } from './storageEvents.js';
 
 const memory = new Map();
 const memoryStorage = {
@@ -29,12 +30,25 @@ export function readText(key, fallback = '') {
   catch (error) { reportError(`leitura de ${key}`, error); return fallback; }
 }
 
+// Cache de parse por chave: varias leituras da mesma chave na mesma renderizacao (ex.: sessao lida pelo Header,
+// pelo perfil e pelo checkout) reaproveitam o JSON ja interpretado enquanto o texto salvo for identico.
+// Os valores devolvidos sao compartilhados: quem le nao deve muta-los (os services sempre criam copias).
+const parseCache = new Map();
+
+function parseCached(key, raw) {
+  const cached = parseCache.get(key);
+  if (cached && cached.raw === raw) return cached.value;
+  const value = JSON.parse(raw);
+  parseCache.set(key, { raw, value });
+  return value;
+}
+
 // Le e valida JSON. `validate` recebe o valor parseado e decide se ele e aceitavel.
 export function readJSON(key, fallback, validate = () => true) {
   const raw = readText(key, null);
   if (raw === null || raw === '') return fallback;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = parseCached(key, raw);
     return parsed !== null && validate(parsed) ? parsed : fallback;
   } catch (error) {
     reportError(`JSON invalido em ${key}`, error);
@@ -46,8 +60,10 @@ export const readArray = key => readJSON(key, [], Array.isArray);
 export const readObject = key => readJSON(key, null, value => typeof value === 'object' && !Array.isArray(value));
 
 export function writeText(key, value) {
-  try { getStorage().setItem(key, String(value)); }
-  catch (error) {
+  try {
+    getStorage().setItem(key, String(value));
+    notifyStorageChange(key);
+  } catch (error) {
     reportError(`gravacao de ${key}`, error);
     throw new AppError(
       isQuotaError(error) ? 'O armazenamento do navegador está cheio. Libere espaço e tente novamente.' : 'Não foi possível salvar os dados neste navegador.',
@@ -64,8 +80,10 @@ export function writeJSON(key, value) {
 }
 
 export function removeKey(key) {
-  try { getStorage().removeItem(key); }
-  catch (error) { reportError(`remocao de ${key}`, error); throw new AppError('Não foi possível atualizar os dados neste navegador.', { code: 'storage_unavailable', cause: error }); }
+  try {
+    getStorage().removeItem(key);
+    notifyStorageChange(key);
+  } catch (error) { reportError(`remocao de ${key}`, error); throw new AppError('Não foi possível atualizar os dados neste navegador.', { code: 'storage_unavailable', cause: error }); }
 }
 
 // Grava varias chaves de uma vez; se alguma falhar, restaura as anteriores (sem estado parcial).
@@ -79,4 +97,4 @@ export function writeMany(entries) {
 }
 
 // Apenas para testes: limpa o fallback em memoria.
-export function resetMemoryStorage() { memory.clear(); }
+export function resetMemoryStorage() { memory.clear(); parseCache.clear(); }

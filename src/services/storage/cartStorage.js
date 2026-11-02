@@ -2,7 +2,8 @@ import { normalizeCart } from '../../utils/businessRules.js';
 import { reportError } from '../../utils/errors.js';
 import { readObject, writeJSON } from './safeStorage.js';
 
-const KEY = 'fastlanche_cart';
+export const CART_STORAGE_KEY = 'fastlanche_cart';
+const KEY = CART_STORAGE_KEY;
 
 // Carrinho salvo e revalidado a cada leitura; JSON invalido ou formato estranho viram carrinho vazio.
 export function loadCart() {

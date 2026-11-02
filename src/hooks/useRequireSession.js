@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AUTH_CHANGE_EVENT, getLoginUrl, readSession } from '../services/authService.js';
+import { SESSION_KEY, getLoginUrl, readSession } from '../services/authService.js';
+import { subscribeToStorage } from '../services/storage/storageEvents.js';
 
 // Protecao de pagina (Fase 40). A sessao e lida de forma sincrona no primeiro render: sem sessao valida (ou sem
 // permissao em `authorize`, ex.: papel de administrador em uma pagina futura) a pagina recebe null, nao renderiza
@@ -18,9 +19,7 @@ export function useRequireSession(page, authorize = () => true) {
       setSession(next);
     };
     enforce();
-    window.addEventListener('storage', enforce);
-    window.addEventListener(AUTH_CHANGE_EVENT, enforce);
-    return () => { window.removeEventListener('storage', enforce); window.removeEventListener(AUTH_CHANGE_EVENT, enforce); };
+    return subscribeToStorage([SESSION_KEY], enforce);
     // `authorize` e estavel por pagina; reavaliar a cada render redirecionaria em loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);

@@ -19,24 +19,33 @@ function copyStaticAssets() {
   };
 }
 
-export default defineConfig({
+// Paginas legadas: servidas direto por qualquer servidor estatico ou pelo build.
+const LEGACY_PAGES = [
+  'index.html',
+  'pages-html/cardapio.html', 'pages-html/carrinho.html', 'pages-html/checkout.html',
+  'pages-html/reservas.html', 'pages-html/feedbacks.html', 'pages-html/login.html',
+  'pages-html/perfil.html'
+];
+// Shells React (executam src/main.jsx): precisam do Vite (npm run dev / build).
+const REACT_PAGES = [
+  'react/index.html', 'react/cardapio.html', 'react/carrinho.html',
+  'react/checkout.html', 'react/receipt.html', 'react/reservas.html', 'react/feedbacks.html',
+  'react/login.html', 'react/perfil.html'
+];
+
+// O build roda duas vezes (npm run build): `--mode legacy` limpa dist/ e gera as paginas legadas; `--mode react`
+// acrescenta os shells React. Os dois lados compartilham modulos de src/; num build unico o Rolldown hospedava o
+// runtime compartilhado no chunk do React e as paginas legadas passavam a baixar (e executar) o React inteiro.
+// Builds separados mantem cada pagina so com o proprio codigo.
+export default defineConfig(({ mode }) => ({
   plugins: [react(), copyStaticAssets()],
   // Caminhos relativos no build: o resultado em dist/ funciona em qualquer
   // servidor estatico (Live Server, abrir via subpasta, etc.).
   base: './',
   build: {
+    emptyOutDir: mode !== 'react',
     rollupOptions: {
-      input: [
-        'index.html',
-        'pages-html/cardapio.html', 'pages-html/carrinho.html', 'pages-html/checkout.html',
-        'pages-html/reservas.html', 'pages-html/feedbacks.html', 'pages-html/login.html',
-        'pages-html/perfil.html',
-        // Shells React (executam src/main.jsx): precisam do Vite (npm run dev / build).
-        // Os HTMLs legados acima continuam sendo servidos direto por qualquer servidor estatico.
-        'react/index.html', 'react/cardapio.html', 'react/carrinho.html',
-        'react/checkout.html', 'react/receipt.html', 'react/reservas.html', 'react/feedbacks.html',
-        'react/login.html', 'react/perfil.html'
-      ]
+      input: mode === 'react' ? REACT_PAGES : LEGACY_PAGES
     }
   }
-});
+}));

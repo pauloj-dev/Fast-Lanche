@@ -1,14 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useAsyncData } from '../hooks/useAsyncData.js';
+import { EmptyState, ErrorState, LoadingState } from '../components/AsyncState.jsx';
 import { getLoginUrl } from '../services/authService.js';
 import { getAccessMessage } from '../utils/access.js';
 import { toUserMessage } from '../utils/errors.js';
-import { getLastOrderReference, getOrderForViewer, getOrderStatusClass, getOrderStatusLabel, getPaymentLabel } from '../services/orderService.js';
+import { formatCurrency, formatLongDateTime } from '../utils/format.js';
+import { ORDER_STORAGE_KEY, getLastOrderReference, getOrderForViewer, getOrderStatusClass, getOrderStatusLabel, getPaymentLabel } from '../services/orderService.js';
 
-const currency = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const dateTime = value => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Data indisponivel' : date.toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
-};
 
 export function getReceiptReference(search = '', fallback = getLastOrderReference()) {
   try { return new URLSearchParams(search).get('order')?.trim() || fallback; } catch { return fallback; }
@@ -26,28 +24,22 @@ function customizationText(customization) {
 }
 
 export function ReceiptPage() {
-  const [state, setState] = useState({ loading: true, order: null, error: '' });
-  useEffect(() => {
-    let active = true;
-    const reference = getReceiptReference(window.location.search);
-    if (!reference) { setState({ loading: false, order: null, error: 'Nenhum pedido recente foi encontrado.' }); return () => { active = false; }; }
-    // Comprovante tem dados pessoais: so a conta (ou o navegador) do pedido pode ve-lo.
-    getOrderForViewer(reference).then(({ access, order }) => {
-      if (active) setState({ loading: false, order, access, error: order ? '' : getAccessMessage(access, 'order') });
-    }).catch(error => { if (active) setState({ loading: false, order: null, error: toUserMessage(error, 'Nao foi possivel carregar o comprovante.') }); });
-    return () => { active = false; };
-  }, []);
-  if (state.loading) return <main className="page-section"><div className="container"><div className="empty-state" role="status">Carregando comprovante...</div></div></main>;
-  if (state.error || !state.order) return <main className="page-section"><div className="container receipt-empty"><div className="empty-state" role="alert"><span className="empty-state-icon">🧾</span><span className="empty-state-text">{state.error}</span>{state.access === 'login_required' || state.access === 'forbidden' ? <a className="button button-primary" href={getLoginUrl('perfil.html')}>Entrar na conta</a> : <a className="button button-primary" href="cardapio.html">Voltar ao cardapio</a>}</div></div></main>;
-  const { order } = state;
+  const [reference] = useState(() => getReceiptReference(window.location.search));
+  // Comprovante tem dados pessoais: so a conta (ou o navegador) do pedido pode ve-lo.
+  // Recarrega quando o pedido muda (ex.: status atualizado pelo admin em outra aba).
+  const receipt = useAsyncData(() => (reference ? getOrderForViewer(reference) : { access: 'none', order: null }), [], [ORDER_STORAGE_KEY]);
+  if (receipt.status === 'loading') return <main className="page-section"><div className="container"><LoadingState text="Carregando comprovante..."/></div></main>;
+  if (receipt.status === 'error') return <main className="page-section"><div className="container receipt-empty"><ErrorState text={toUserMessage(receipt.error, 'Nao foi possivel carregar o comprovante.')} onRetry={receipt.reload}/></div></main>;
+  const { access, order } = receipt.data;
+  if (!order) return <main className="page-section"><div className="container receipt-empty"><EmptyState icon="🧾" text={access === 'none' ? 'Nenhum pedido recente foi encontrado.' : getAccessMessage(access, 'order')}>{access === 'login_required' || access === 'forbidden' ? <a className="button button-primary" href={getLoginUrl('perfil.html')}>Entrar na conta</a> : <a className="button button-primary" href="cardapio.html">Voltar ao cardapio</a>}</EmptyState></div></main>;
   const paymentApproved = order.paymentStatus === 'approved';
   return <main id="top"><section className="page-section receipt-page-section" aria-labelledby="receipt-page-title"><div className="container receipt-page-container">
     <div className="section-heading"><div><p className="section-kicker">Pedido confirmado</p><h1 id="receipt-page-title">Comprovante</h1></div><span className={`receipt-status-badge status-${getOrderStatusClass(order.status)}`}>{getOrderStatusLabel(order.status)}</span></div>
     <article className="receipt-page-card">
       <header className="receipt-header"><div className="receipt-title-group"><strong className="receipt-brand">Fast Lanche</strong><span className="receipt-type">COMPROVANTE DIGITAL</span></div><div className="receipt-id-group"><span className="receipt-id-label">Numero do pedido</span><strong className="receipt-id-value">{order.orderNumber}</strong></div></header>
-      <section className="receipt-section"><h2 className="receipt-section-title">Informacoes do pedido</h2><div className="receipt-info-grid"><Info label="Data" value={dateTime(order.createdAt)} /><Info label="Cliente" value={order.customer.name} /><Info label="E-mail" value={order.customer.email} /><Info label="Telefone" value={order.customer.phone} /><Info label="Endereco" value={order.customer.address} /><Info label="Pagamento" value={`${getPaymentLabel(order.paymentMethod)} (${paymentApproved ? 'aprovado' : order.paymentStatus})`} /></div></section>
-      <section className="receipt-section"><h2 className="receipt-section-title">Itens</h2><div className="receipt-items-table">{order.items.map((item, index) => <div className="receipt-item-row" key={`${item.id || item.name}-${index}`}><div className="receipt-item-info"><span className="receipt-item-name">{item.quantity}x {item.name}</span>{customizationText(item.customization) && <span className="receipt-item-cust">{customizationText(item.customization)}</span>}</div><strong className="receipt-item-total">{currency(item.total || item.price * item.quantity)}</strong></div>)}</div></section>
-      <section className="receipt-section receipt-values"><div className="receipt-values-divider"><div className="receipt-value-row"><span>Subtotal</span><span>{currency(order.subtotal)}</span></div><div className="receipt-value-row"><span>Entrega</span><span>{currency(order.deliveryFee)}</span></div><div className="receipt-total-row"><span>Total</span><strong>{currency(order.total)}</strong></div></div></section>
+      <section className="receipt-section"><h2 className="receipt-section-title">Informacoes do pedido</h2><div className="receipt-info-grid"><Info label="Data" value={formatLongDateTime(order.createdAt)} /><Info label="Cliente" value={order.customer.name} /><Info label="E-mail" value={order.customer.email} /><Info label="Telefone" value={order.customer.phone} /><Info label="Endereco" value={order.customer.address} /><Info label="Pagamento" value={`${getPaymentLabel(order.paymentMethod)} (${paymentApproved ? 'aprovado' : order.paymentStatus})`} /></div></section>
+      <section className="receipt-section"><h2 className="receipt-section-title">Itens</h2><div className="receipt-items-table">{order.items.map((item, index) => <div className="receipt-item-row" key={`${item.id || item.name}-${index}`}><div className="receipt-item-info"><span className="receipt-item-name">{item.quantity}x {item.name}</span>{customizationText(item.customization) && <span className="receipt-item-cust">{customizationText(item.customization)}</span>}</div><strong className="receipt-item-total">{formatCurrency(item.total || item.price * item.quantity)}</strong></div>)}</div></section>
+      <section className="receipt-section receipt-values"><div className="receipt-values-divider"><div className="receipt-value-row"><span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div><div className="receipt-value-row"><span>Entrega</span><span>{formatCurrency(order.deliveryFee)}</span></div><div className="receipt-total-row"><span>Total</span><strong>{formatCurrency(order.total)}</strong></div></div></section>
       <footer className="receipt-footer"><p>{paymentApproved ? 'Pagamento simulado aprovado.' : 'Pagamento simulado pendente.'}</p><span>Guarde o numero do pedido para consulta.</span></footer>
     </article>
     <div className="receipt-page-actions"><a className="button button-secondary" href="cardapio.html">Continuar comprando</a><button className="button button-primary" type="button" onClick={() => window.print()}>Imprimir comprovante</button></div>

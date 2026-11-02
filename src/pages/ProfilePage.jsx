@@ -1,23 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { AUTH_CHANGE_EVENT, getLoginUrl, logout } from '../services/authService.js';
+import { PROFILE_KEY, getLoginUrl, logout } from '../services/authService.js';
+import { subscribeToStorage } from '../services/storage/storageEvents.js';
+import { getPaymentOptions } from '../data/paymentMethods.js';
 import { useRequireSession } from '../hooks/useRequireSession.js';
 import { toUserMessage } from '../utils/errors.js';
 import { getOrderHistory, getProfile, getProfileCompletion, prepareAvatarFile, removeAvatar, summarizeOrders, updateAvatar, updateProfile } from '../services/profileService.js';
-import { getOrderStatusClass, getOrderStatusLabel } from '../services/orderService.js';
+import { ORDER_STORAGE_KEY, getOrderStatusClass, getOrderStatusLabel } from '../services/orderService.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
+import { ErrorState } from '../components/AsyncState.jsx';
 import { getReceiptUrl } from '../services/checkoutService.js';
 import { AVATAR_ACCEPTED_TYPES, getInitials } from '../utils/businessRules.js';
-import { formatCurrency as currency, formatDateTime } from '../utils/format.js';
+import { formatCurrency as currency, formatDateTime, formatDayMonth, formatMonthYear } from '../utils/format.js';
 
 export const PROFILE_LOGIN_URL = getLoginUrl('perfil.html');
-const PAYMENT_PREFERENCES = [['pix', '⚡', 'Pix', 'Aprovação na hora'], ['card', '💳', 'Cartão', 'Crédito ou débito'], ['cash', '💵', 'Dinheiro', 'Pague na entrega'], ['', '🤔', 'Decidir depois', 'Escolho no checkout']];
+const PAYMENT_PREFERENCES = getPaymentOptions(['pix', 'card', 'cash', '']).map(method => [method.value, method.icon, method.label, method.hint]);
 const RECENT_ORDERS_LIMIT = 4;
 const toFields = profile => ({ name: profile.name, phone: profile.phone, address: profile.address, paymentMethod: profile.preferences.paymentMethod, notifications: profile.preferences.notifications });
 const sameFields = (a, b) => Object.keys(a).every(key => a[key] === b[key]);
-
-function memberSince(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-}
 
 function itemsSummary(items) {
   const text = items.map(item => `${item.quantity}× ${item.name}`).join(', ');
@@ -45,10 +44,11 @@ function CompletionCard({ completion }) {
   </div>;
 }
 
-function OrderHistory({ state }) {
+function OrderHistory({ history }) {
   const [showAll, setShowAll] = useState(false);
-  if (state.loading) return <div className="account-orders-skeleton" role="status" aria-label="Carregando pedidos"><span/><span/><span/></div>;
-  if (state.error) return <p className="form-feedback" data-status="error" role="alert">{state.error}</p>;
+  if (history.status === 'loading') return <div className="account-orders-skeleton" role="status" aria-label="Carregando pedidos"><span/><span/><span/></div>;
+  if (history.status === 'error') return <ErrorState text="Não foi possível carregar seus pedidos." onRetry={history.reload}/>;
+  const state = { orders: history.data };
   if (!state.orders.length) return <div className="account-empty" role="status"><span aria-hidden="true">🍔</span><strong>Nenhum pedido ainda</strong><p>Quando você pedir com esta conta, o histórico aparece aqui.</p><a className="button button-primary button-small" href="cardapio.html">Fazer meu primeiro pedido</a></div>;
   const visible = showAll ? state.orders : state.orders.slice(0, RECENT_ORDERS_LIMIT);
   return <>
@@ -71,7 +71,6 @@ export function ProfilePage() {
   const [avatarFeedback, setAvatarFeedback] = useState({ text: '', status: '' });
   const [pending, setPending] = useState(false);
   const [avatarPending, setAvatarPending] = useState(false);
-  const [orders, setOrders] = useState({ loading: true, orders: [], error: '' });
   const fileInput = useRef(null);
   const nameInput = useRef(null);
   // Protecao da pagina: sem sessao valida (inclusive logout/expiracao em outra aba) volta para o login.
@@ -81,27 +80,19 @@ export function ProfilePage() {
   // Perfil alterado em outra aba (ou no modal legado) e recarregado.
   useEffect(() => {
     if (!session) return undefined;
-    const refresh = () => { const next = getProfile(); if (next) setProfile(next); };
-    window.addEventListener('storage', refresh);
-    window.addEventListener(AUTH_CHANGE_EVENT, refresh);
-    return () => { window.removeEventListener('storage', refresh); window.removeEventListener(AUTH_CHANGE_EVENT, refresh); };
+    return subscribeToStorage([PROFILE_KEY], () => { const next = getProfile(); if (next) setProfile(next); });
   }, [session]);
 
-  useEffect(() => {
-    if (!loggedIn) return undefined;
-    let active = true;
-    getOrderHistory()
-      .then(list => { if (active) setOrders({ loading: false, orders: list, error: '' }); })
-      .catch(() => { if (active) setOrders({ loading: false, orders: [], error: 'Não foi possível carregar seus pedidos.' }); });
-    return () => { active = false; };
-  }, [loggedIn]);
+  // Historico acompanha mudancas nos pedidos (novo pedido, status atualizado em outra aba).
+  const history = useAsyncData(() => (loggedIn ? getOrderHistory() : []), [loggedIn], [ORDER_STORAGE_KEY]);
+  const orders = { loading: history.status === 'loading', orders: history.data || [] };
 
   if (!loggedIn) return <main id="top" className="page-section"><div className="container"><div className="empty-state" role="status"><span className="empty-state-icon">🔒</span><span className="empty-state-text">Faça login para acessar seu perfil. Redirecionando...</span><a className="button button-primary" href={PROFILE_LOGIN_URL}>Ir para o login</a></div></div></main>;
 
   const dirty = !sameFields(fields, toFields(profile));
   const completion = getProfileCompletion(profile);
   const summary = summarizeOrders(orders.orders);
-  const since = memberSince(profile.createdAt);
+  const since = formatMonthYear(profile.createdAt);
   const setField = name => event => {
     setFields({ ...fields, [name]: event.target.type === 'checkbox' ? event.target.checked : event.target.value });
     if (feedback.status === 'success') setFeedback({ text: '', status: '' });
@@ -169,7 +160,7 @@ export function ProfilePage() {
       <dl className="account-stats">
         <div><dt>Pedidos</dt><dd>{orders.loading ? '—' : summary.count}</dd></div>
         <div><dt>Total gasto</dt><dd>{orders.loading ? '—' : currency(summary.totalSpent)}</dd></div>
-        <div><dt>Último pedido</dt><dd>{summary.lastOrderAt ? new Date(summary.lastOrderAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}</dd></div>
+        <div><dt>Último pedido</dt><dd>{summary.lastOrderAt ? formatDayMonth(summary.lastOrderAt) : '—'}</dd></div>
       </dl>
     </header>
 
@@ -209,7 +200,7 @@ export function ProfilePage() {
         <CompletionCard completion={completion}/>
         <section className="account-card" aria-labelledby="profile-orders-title">
           <div className="account-card-head"><h2 id="profile-orders-title">Meus pedidos</h2>{summary.count > 0 && <span className="account-count">{summary.count}</span>}</div>
-          <OrderHistory state={orders}/>
+          <OrderHistory history={history}/>
         </section>
         <nav className="account-card account-shortcuts" aria-label="Atalhos">
           <a href="cardapio.html"><span aria-hidden="true">🍔</span>Novo pedido</a>

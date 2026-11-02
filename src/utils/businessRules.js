@@ -7,6 +7,7 @@ import {
   FIELD_LIMITS, checkTextLength, isValidAddress, isValidDateString, isValidDocument, isValidEmail, isValidPhone,
   normalizeEmail, sanitizeDeep, sanitizeText
 } from './validation.js';
+import { BOOKING_PAYMENT_METHODS, CHECKOUT_PAYMENT_METHODS, PROFILE_PAYMENT_METHODS } from '../data/paymentMethods.js';
 
 // Reexportados: regras e services continuam importando daqui.
 export { FIELD_LIMITS, isValidEmail, normalizeEmail, sanitizeDeep, sanitizeText };
@@ -65,7 +66,7 @@ export function validateCheckout(data, itemCount) {
   if (!isValidPhone(data.phone)) errors.push('Informe um telefone valido com DDD.');
   if (!isValidEmail(data.email)) errors.push('Informe um e-mail valido.');
   if (!isValidAddress(data.address)) errors.push('Informe um endereco de entrega valido (rua, numero e bairro).');
-  if (!['pix', 'card', 'cash'].includes(data.payment)) errors.push('Selecione uma forma de pagamento.');
+  if (!CHECKOUT_PAYMENT_METHODS.includes(data.payment)) errors.push('Selecione uma forma de pagamento.');
   if (String(data.document || '').trim() && !isValidDocument(data.document)) errors.push('CPF/CNPJ invalido. Confira os numeros digitados.');
   return errors;
 }
@@ -107,7 +108,7 @@ export function validateSignup({ name, email, password, confirmPassword, phone }
 
 // Perfil (Fase 37). Os limites seguem js/security.js (sanitizeProfileData) para os dois fluxos aceitarem os mesmos dados.
 export const PROFILE_LIMITS = Object.freeze({ name: 80, phone: 20, address: 200 });
-export const PROFILE_PAYMENT_METHODS = Object.freeze(['', 'pix', 'card', 'cash']);
+export { PROFILE_PAYMENT_METHODS };
 export const AVATAR_ACCEPTED_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 export const AVATAR_MAX_FILE_BYTES = 2 * 1024 * 1024;
 // Avatar ja reduzido, guardado como data URL no perfil e na conta: precisa caber com folga na cota do localStorage.
@@ -167,7 +168,9 @@ export const BOOKING_DURATION_MINUTES = 90;
 export const BOOKING_MAX_DAYS_AHEAD = 60;
 // Taxa fixa por reserva, abatida da conta no dia.
 export const BOOKING_FEE = 20;
-export const BOOKING_PAYMENT_METHODS = Object.freeze(['pix', 'card']);
+export { BOOKING_PAYMENT_METHODS };
+// Rotulos da grade de horarios (React e legado).
+export const BOOKING_SLOT_LABELS = Object.freeze({ available: '', few: 'Últimas mesas', full: 'Lotado', past: 'Encerrado' });
 export const BOOKING_OCCASIONS = Object.freeze([
   ['', 'Sem ocasião', '🍽️'], ['aniversario', 'Aniversário', '🎂'], ['romantico', 'Jantar a dois', '💛'],
   ['negocios', 'Negócios', '💼'], ['familia', 'Família', '👨‍👩‍👧'], ['amigos', 'Amigos', '🍻']
@@ -270,6 +273,7 @@ export function getUpcomingBookingDates(now = new Date(), count = 7) {
 
 // Feedbacks (Fase 39). Limites aplicados na validacao e de novo ao carregar do armazenamento.
 export const FEEDBACK_LIMITS = Object.freeze({ name: 80, comment: 1000, commentMin: 10, productName: 80, products: 10 });
+export const RATING_LABELS = Object.freeze({ 1: 'Péssimo', 2: 'Ruim', 3: 'Regular', 4: 'Muito bom', 5: 'Excelente' });
 export const FEEDBACK_SORTS = Object.freeze([['recent', 'Mais recentes'], ['best', 'Melhor nota'], ['worst', 'Pior nota']]);
 
 // Chave do produto avaliado: id do cardapio quando existe, senao o nome normalizado (itens antigos sem id).

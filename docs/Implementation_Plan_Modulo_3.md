@@ -32,7 +32,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 38 | Reservas avançadas | Concluída | Disponibilidade, pagamento simulado e confirmação |
 | 39 | Feedbacks avançados | Concluída | Feedback vinculado a produtos com busca e filtros |
 | 40 | Segurança | Concluída | Validação e sanitização compartilhadas nos fluxos React |
-| 41 | Otimização e refinamento | Parcial | Serviços, estados de UI e convenções React consistentes |
+| 41 | Otimização e refinamento | Concluída | Serviços, estados de UI e convenções React consistentes |
 | 42 | Responsividade | Pendente | Validação visual da aplicação React em todos os breakpoints |
 | 43 | Testes | Parcial | Cobertura dos contratos React e dos fluxos críticos |
 | 44 | Preparação para backend | Parcial | Contratos de domínio substituíveis por API |
@@ -93,7 +93,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 ## Contratos atuais a preservar
 
 - Carrinho: `src/context/CartContext.jsx` e `src/services/cartService.js`.
-- Cardápio: `src/services/menuService.js` e `src/components/ProductCard.jsx`.
+- Cardápio: `src/data/menuCatalog.js` (fonte única do catálogo), `src/services/menuService.js` (catálogo + edições do admin legado) e `src/components/ProductCard.jsx`. `js/menu-store.js`, `js/constants.js` e `js/product-images.js` são adapters que importam de `src/data/`.
 - Pedido: `src/services/orderService.js`. A chave `fastlanche_orders` é compartilhada com o legado (admin, fila e acompanhamento): os status persistidos são os rótulos de `js/order-tracking.js` (`Pedido recebido`, `Pagamento confirmado`...) e pedidos de outras páginas são regravados sem alteração.
 - Linhas do carrinho: identificadas por `cartItemId` (mesmo contrato de `js/cart.js`), pois o mesmo produto pode ter linhas com personalizações diferentes.
 - Reserva: `src/services/bookingService.js` (`getAvailability`, `createBooking`, `getBooking`). A chave `fastlanche_bookings` é compartilhada com `js/booking.js`: reservas legadas (sem mesa) contam na capacidade e são regravadas sem alteração.
@@ -102,6 +102,8 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Perfil: `src/services/profileService.js` (validação, avatar, preferências, histórico e dados do checkout). Grava pela função `saveAccountProfile` do `authService`.
 - Checkout: `src/services/checkoutService.js` (`placeOrder`) concentra validação, pagamento simulado e gravação do pedido.
 - API futura: `src/services/api/apiClient.js`.
+- Convenções (Fase 41): formatação em `src/utils/format.js`, identificadores em `src/utils/ids.js`, formas de pagamento em `src/data/paymentMethods.js`, sincronização por `subscribeToStorage` (`src/services/storage/storageEvents.js`), estados assíncronos com `useAsyncData` + `AsyncState`, mensagens de formulário com `FormFeedback`.
+- Build: `npm run build` executa `vite build --mode legacy` (limpa `dist/`) e `vite build --mode react` (acrescenta os shells). Os dois grafos ficam separados de propósito; ver Fase 41.
 - Segurança (Fase 40): `src/utils/validation.js` (validação e sanitização), `src/services/storage/safeStorage.js` (único acesso ao `localStorage`), `src/utils/errors.js` (`AppError`, `toUserMessage`), `src/hooks/useRequireSession.js` (proteção de página) e `canViewOrder`/`canViewBooking` (acesso a comprovantes).
 
 ---
@@ -410,9 +412,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 41 - OTIMIZAÇÃO E REFINAMENTO (PARCIAL)
+## FASE 41 - OTIMIZAÇÃO E REFINAMENTO (CONCLUÍDA)
 
-### Trabalho restante
+### Escopo
 
 - Remover acoplamentos de páginas React aos módulos globais legados quando houver um contrato equivalente em `src/services`.
 - Extrair os dados do cardápio usados por `menuService` para uma fonte de domínio em `src/`, mantendo um adapter de compatibilidade temporário.
@@ -421,6 +423,41 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Consolidar mensagens, formatação monetária, datas e identificadores em utilitários compartilhados.
 - Revisar acessibilidade: foco após erro/modal, labels, teclado, `aria-live` e contraste.
 - Verificar que os links entre shells React e páginas legadas funcionam tanto no dev server quanto em `dist/`.
+
+### Entregue nesta fase
+
+- **Desacoplamento do legado:** `src/` não importa mais nada de `js/`.
+  - O catálogo foi para `src/data/menuCatalog.js` (com `CUSTOMIZATION_TYPES`) e as ilustrações para `src/data/productImages.js`.
+  - `js/menu-store.js` trabalha sobre uma cópia mutável (`cloneMenuCatalog`), e `js/constants.js` e `js/product-images.js` viraram adapters de reexportação.
+  - O `menuService` passou a aplicar as edições do admin legado (`fastlanche_menuItems`), validadas campo a campo; antes o cardápio React as ignorava. O estoque legado (`fastlanche_inventory`) continua fora do React.
+- **Utilitários compartilhados:**
+  - `format.js`: moeda, data e hora, data longa e curta, dia e mês, mês e ano, plural, pessoas e média.
+  - `ids.js`: números de pedido e de reserva e id de linha do carrinho, com `crypto.getRandomValues`.
+  - `paymentMethods.js`: catálogo único de formas de pagamento por fluxo.
+  - `businessRules.js` passou a concentrar `RATING_LABELS` e `BOOKING_SLOT_LABELS`.
+  - Páginas React e módulos legados de reservas e avaliações deixaram de ter cópias próprias desses rótulos e helpers.
+- **Sincronização:**
+  - `safeStorage` dispara `fastlanche:storage` a cada gravação ou remoção, e `subscribeToStorage(keys, cb)` une esse evento (mesma aba) ao evento `storage` (outras abas), filtrando pelas chaves.
+  - Header, carrinho, proteção de sessão, login, perfil, cardápio, reservas e avaliações (React e legado) escutam só as chaves de que dependem. Exemplo: salvar o nome no perfil atualiza o header na mesma aba.
+  - Cache de parse por chave no `safeStorage`: leituras repetidas do mesmo texto reaproveitam o JSON já interpretado.
+- **Estados padronizados:**
+  - `useAsyncData` (carregando, sucesso ou erro, recarga em segundo plano quando as chaves observadas mudam, `reload`) e `LoadingState`, `ErrorState` (com "Tentar novamente") e `EmptyState`.
+  - Aplicados a Cardápio (que antes mostrava "nenhum item encontrado" durante o carregamento), Comprovante, histórico do Perfil, horários e confirmação de Reservas, e lista e formulário de Feedbacks. Nenhuma falha de carregamento é mais silenciosa.
+- **Acessibilidade:**
+  - `FormFeedback`: em erro, a mensagem vira `role="alert"` e recebe foco; nos demais estados é anunciada por `aria-live`. Usado em login/cadastro, checkout, reservas e avaliações.
+  - Modal global: foco entra no diálogo, Tab fica preso, Esc fecha e o foco volta para quem abriu. Nenhuma página React abre o modal hoje, então esse comportamento ficou pronto mas não pôde ser exercitado pela interface.
+  - Contraste: o vermelho da marca foi de `#E63946` (3,9 a 4,2:1 com branco e creme) para `#CC2936` (de 4,56 a 5,33:1), com hover em `#AE1F2B`. Horários indisponíveis e produtos já avaliados passaram a usar o cinza do sistema.
+- **Build e links:**
+  - A verificação de links revelou uma regressão: ao compartilhar `src/` com o legado, o Rolldown hospedou o runtime no chunk do React. As páginas legadas passaram a baixar e executar o React e quebravam (header ausente, React error #299).
+  - O build agora roda em duas passagens (`--mode legacy` e `--mode react`), com grafos separados. O `main.jsx` só monta o React se existir `#root`.
+  - O último commit foi comparado em uma worktree temporária para confirmar a origem da regressão.
+
+### Evidência
+
+- **Testes:** `tests/test-refinement.mjs` tem 8 testes. Eles cobrem formatação; identificadores; catálogo de pagamentos; catálogo em `src/` com adapters legados; edições do admin validadas no `menuService`; status do restaurante; cache de leitura; eventos de sincronização na mesma aba, em outra aba e com storage limpo; uma varredura estática de `src/` (sem imports de `js/`, sem formatação própria e sem `storage` direto em páginas e componentes); e a separação do build. `npm test`: 73/73.
+- **Auditoria de acessibilidade no navegador:** script próprio em todas as páginas React e nas páginas legadas de reservas e avaliações. Resultado: nenhum campo sem rótulo, ação sem nome, imagem sem `alt` ou id duplicado, e nenhum texto abaixo de 4,5:1 (só o emoji 🛒 aparece, falso positivo). O erro do cadastro recebeu foco como alerta.
+- **Links:** todos os links de 17 páginas foram verificados no `dist/` (17 links únicos) e no dev server (23), comparando com a resposta de fallback do servidor. Nenhum link quebrado e nenhum erro de script.
+- **Navegador:** as páginas legadas carregam sem nenhum chunk React e sem erros no console. Checkout, Perfil (header sincronizado na mesma aba) e Reservas renderizam com o catálogo de pagamentos compartilhado.
 
 ### Critérios de aceite
 

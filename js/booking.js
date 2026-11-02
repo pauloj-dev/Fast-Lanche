@@ -5,27 +5,21 @@ import { showToast } from './ui.js';
 import { readSession } from '../src/services/authService.js';
 import { getCheckoutDefaults } from '../src/services/profileService.js';
 import {
-  createBooking, getAvailability, getBookingForViewer, getBookingConfirmationUrl, getBookingHighlights,
+  BOOKING_STORAGE_KEY, createBooking, getAvailability, getBookingForViewer, getBookingConfirmationUrl, getBookingHighlights,
   getBookingOccasionLabel, getBookingPaymentLabel, getBookingStatusLabel
 } from '../src/services/bookingService.js';
 import {
-  BOOKING_DURATION_MINUTES, BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_MAX_DAYS_AHEAD, BOOKING_NOTES_MAX,
+  BOOKING_DURATION_MINUTES, BOOKING_SLOT_LABELS, BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_MAX_DAYS_AHEAD, BOOKING_NOTES_MAX,
   BOOKING_OCCASIONS, BOOKING_OPENING, MAX_GUESTS, getUpcomingBookingDates, toLocalDateString
 } from '../src/utils/businessRules.js';
-import { formatCurrency } from '../src/utils/format.js';
+import { formatCurrency, formatPeople as people, formatShortDate, formatWeekdayDate as formatLongDate } from '../src/utils/format.js';
+import { subscribeToStorage } from '../src/services/storage/storageEvents.js';
 import { getAccessMessage } from '../src/utils/access.js';
 import { toUserMessage } from '../src/utils/errors.js';
 
-const SLOT_HINTS = { available: '', few: 'Últimas mesas', full: 'Lotado', past: 'Encerrado' };
+const SLOT_HINTS = BOOKING_SLOT_LABELS;
 const state = { date: toLocalDateString(), guests: 2, time: '', occasion: '', slots: [], pending: false };
 
-const people = count => `${count} ${count === 1 ? 'pessoa' : 'pessoas'}`;
-const formatShortDate = date => date.split('-').reverse().join('/');
-function formatLongDate(date) {
-  const [year, month, day] = date.split('-').map(Number);
-  const value = new Date(year, month - 1, day);
-  return Number.isNaN(value.getTime()) ? date : value.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-}
 
 function el(tag, className, text) {
   const element = document.createElement(tag);
@@ -278,7 +272,7 @@ function setupBooking() {
   form.addEventListener('submit', handleSubmit);
   form.addEventListener('input', event => { if (event.target.matches('input, textarea') && form.querySelector('#booking-feedback').dataset.status === 'error') setFeedback(''); });
   // Reserva feita em outra aba: recalcula a disponibilidade.
-  window.addEventListener('storage', refreshSlots);
+  subscribeToStorage([BOOKING_STORAGE_KEY], refreshSlots);
 
   renderHighlights();
   renderDates();

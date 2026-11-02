@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
-import { AUTH_CHANGE_EVENT, getAccount, logout } from '../services/authService.js';
+import { PROFILE_KEY, SESSION_KEY, getAccount, logout } from '../services/authService.js';
+import { subscribeToStorage } from '../services/storage/storageEvents.js';
 
 const links = [
   ['index.html', 'Home'], ['cardapio.html', 'Cardapio'],
@@ -14,13 +15,7 @@ export function Header() {
   const page = location.pathname.split('/').pop() || 'index.html';
   const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
   useEffect(() => {
-    const refresh = () => setAccount(getAccount());
-    window.addEventListener('storage', refresh);
-    window.addEventListener(AUTH_CHANGE_EVENT, refresh);
-    return () => {
-      window.removeEventListener('storage', refresh);
-      window.removeEventListener(AUTH_CHANGE_EVENT, refresh);
-    };
+    return subscribeToStorage([SESSION_KEY, PROFILE_KEY], () => setAccount(getAccount()));
   }, []);
   return <header className="site-header">
     <div className="container header-layout">

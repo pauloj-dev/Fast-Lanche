@@ -199,7 +199,7 @@ npx serve .
 
 Depois acesse `http://localhost:8000` (Home). As demais páginas ficam em `pages-html/`, por exemplo `http://localhost:8000/pages-html/cardapio.html`.
 
-> A pasta `react/` contém shells que dependem do Vite (`npm run dev` / `npm run build`) durante a migração para React. O build gera todas as páginas (legadas e shells) em `dist/`, incluindo `dist/pages-html/`.
+> A pasta `react/` contém shells que dependem do Vite (`npm run dev` / `npm run build`) durante a migração para React. O build gera todas as páginas (legadas e shells) em `dist/`, incluindo `dist/pages-html/`. Use sempre `npm run build`: ele roda `vite build --mode legacy` e depois `vite build --mode react`, mantendo páginas legadas e shells React com bundles separados (um `vite build` sozinho gera só as páginas legadas).
 
 > **Observação:** como o projeto usa módulos ES6 (`import`/`export`), recomendamos servir via HTTP local em vez de abrir o arquivo diretamente (`file://`), para garantir o carregamento correto dos módulos.
 

@@ -2,7 +2,8 @@
 
 :root {
   --amarelo: #FFC700;
-  --vermelho: #E63946;
+  /* #CC2936: contraste AA (4,5:1) com texto branco e sobre creme; o tom anterior (#E63946) ficava em 3,9–4,2:1. */
+  --vermelho: #CC2936;
   --branco: #FFFFFF;
   --preto: #161616;
   --cinza-50: #FAFAF8;
@@ -293,7 +294,7 @@ a {
 
 .button-primary:hover,
 .button-primary:focus-visible {
-  background: #C92331;
+  background: #AE1F2B;
 }
 
 .button-secondary {
@@ -5604,8 +5605,8 @@ img {
 
 .button-primary:hover,
 .button-primary:focus-visible {
-  border-color: #D62839;
-  background: #D62839;
+  border-color: #AE1F2B;
+  background: #AE1F2B;
   box-shadow: 0 12px 26px rgba(230, 57, 70, .34);
   transform: translateY(-1px);
 }
@@ -10107,4 +10108,39 @@ input[type="range"] {
   .review-card header {
     flex-wrap: wrap;
   }
+}
+
+/* --- estados de carregamento e erro padronizados (Fase 41) --- */
+.empty-state.is-loading,
+.empty-state.is-error {
+  display: grid;
+  justify-items: center;
+  gap: .6rem;
+}
+
+.state-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--creme-300);
+  border-top-color: var(--vermelho);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+.empty-state.is-error .empty-state-text {
+  color: #9B1C26;
+  font-weight: 700;
+}
+
+.form-feedback:focus {
+  outline: 3px solid var(--amarelo);
+  outline-offset: 2px;
+}
+
+/* Horarios indisponiveis e produtos ja avaliados: rotulo legivel (contraste AA); o estado segue marcado pelo
+   texto riscado e pela borda tracejada. */
+.booking-slot.is-full,
+.booking-slot.is-past,
+.review-product.is-reviewed {
+  color: var(--cinza-500);
 }

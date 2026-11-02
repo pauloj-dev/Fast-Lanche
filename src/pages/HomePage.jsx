@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMenuItem } from '../services/menuService.js';
+import { reportError } from '../utils/errors.js';
 import { useCart } from '../context/CartContext.jsx';
 import { ProductImage } from '../components/ProductImage.jsx';
 import { formatCurrency } from '../utils/format.js';
@@ -12,7 +13,8 @@ export function HomePage() {
   const [featured, setFeatured] = useState(null);
   const [added, setAdded] = useState(false);
   const { add } = useCart();
-  useEffect(() => { getMenuItem(FEATURED_PRODUCT_ID).then(setFeatured); }, []);
+  // Destaque e opcional: em erro o card mostra so o texto geral, sem quebrar a Home.
+  useEffect(() => { getMenuItem(FEATURED_PRODUCT_ID).then(setFeatured).catch(error => reportError('produto em destaque', error)); }, []);
   function addFeatured() {
     add(featured);
     setAdded(true);

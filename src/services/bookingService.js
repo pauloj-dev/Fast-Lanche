@@ -6,6 +6,9 @@ import {
   sanitizeText, validateBooking, validateBookingContact
 } from '../utils/businessRules.js';
 import { readSession } from './authService.js';
+import { createBookingNumber } from '../utils/ids.js';
+import { formatCurrency } from '../utils/format.js';
+import { getPaymentLabel } from '../data/paymentMethods.js';
 import { AppError } from '../utils/errors.js';
 import { readArray, readText, writeJSON, writeText } from './storage/safeStorage.js';
 
@@ -13,7 +16,6 @@ export const BOOKING_STORAGE_KEY = 'fastlanche_bookings';
 export const LAST_BOOKING_REFERENCE_KEY = 'fastlanche_last_booking';
 export const BOOKING_STATUS = Object.freeze({ CONFIRMED: 'confirmed' });
 export const BOOKING_STATUS_LABELS = Object.freeze({ [BOOKING_STATUS.CONFIRMED]: 'Confirmada' });
-export const BOOKING_PAYMENT_LABELS = Object.freeze({ pix: 'Pix', card: 'Cartão de crédito/débito' });
 export const PAYMENT_DELAY_MS = 500;
 
 function readRawBookings() { return readArray(BOOKING_STORAGE_KEY); }
@@ -54,10 +56,6 @@ export async function getAvailability(date, guests, now = new Date()) {
   return getDayAvailability(readBookings(), date, guests, now);
 }
 
-// Numero estavel e legivel: data da reserva + sufixo aleatorio (ex.: RS-20261105-K3F9).
-function createBookingNumber(date) {
-  return `RS-${date.replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(4, '0')}`;
-}
 
 // Pagamento simulado da taxa. `simulateFailure` existe para demonstrar o fluxo de recusa.
 export async function simulateBookingPayment({ method, simulateFailure = false }, delay = PAYMENT_DELAY_MS) {
@@ -129,11 +127,11 @@ export async function getBookingForViewer(bookingNumber) {
 export function getBookingConfirmationUrl(bookingNumber) { return `reservas.html?reserva=${encodeURIComponent(bookingNumber)}`; }
 export const getBookingStatusLabel = status => BOOKING_STATUS_LABELS[status] || BOOKING_STATUS_LABELS[BOOKING_STATUS.CONFIRMED];
 export const getBookingOccasionLabel = occasion => BOOKING_OCCASIONS.find(([value]) => value === occasion)?.[1] || '';
-export const getBookingPaymentLabel = method => BOOKING_PAYMENT_LABELS[method] || 'Não informado';
+export const getBookingPaymentLabel = getPaymentLabel;
 
 // Destaques exibidos no topo das paginas de reserva (React e legado).
 export function getBookingHighlights() {
-  const fee = BOOKING_FEE.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fee = formatCurrency(BOOKING_FEE);
   return [
     ['⚡', 'Confirmação imediata', 'Mesa garantida após o pagamento'],
     ['🪑', `${BOOKING_TABLES.length} mesas`, `Grupos de 1 a ${MAX_GUESTS} pessoas`],

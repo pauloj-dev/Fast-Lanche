@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { FormFeedback } from '../components/FormFeedback.jsx';
 import { toUserMessage } from '../utils/errors.js';
 import { getFeedbacks, getReviewContext, publishFeedback } from '../services/feedbackService.js';
 import {
-  FEEDBACK_LIMITS, FEEDBACK_SORTS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
+  FEEDBACK_LIMITS, FEEDBACK_SORTS, RATING_LABELS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
 } from '../utils/businessRules.js';
-import { formatDateTime } from '../utils/format.js';
+import { formatAverage, formatDateTime, plural } from '../utils/format.js';
+import { FEEDBACK_STORAGE_KEY } from '../services/feedbackService.js';
+import { ORDER_STORAGE_KEY } from '../services/orderService.js';
+import { SESSION_KEY } from '../services/authService.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
+import { ErrorState } from '../components/AsyncState.jsx';
 
-const RATING_LABELS = { 1: 'Péssimo', 2: 'Ruim', 3: 'Regular', 4: 'Muito bom', 5: 'Excelente' };
+const EMPTY_LIST = [];
+const NO_CONTEXT = { account: null, eligible: [] };
+
 const EMPTY_FILTERS = { query: '', productKey: '', rating: 0, sort: 'recent' };
-const formatAverage = value => value.toFixed(1).replace('.', ',');
-const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
 export function Stars({ value, size = '' }) {
   const rounded = Math.round(value);
@@ -80,25 +86,17 @@ function ReviewForm({ context, onPublished }) {
       <small className="booking-counter">{comment.trim().length}/{FEEDBACK_LIMITS.comment} · mínimo {FEEDBACK_LIMITS.commentMin}</small>
     </label>
     <button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Publicando...' : 'Publicar avaliação'}</button>
-    <p id="feedback-message" className="form-feedback" data-status={feedback.status} role={feedback.status === 'error' ? 'alert' : undefined} aria-live="polite">{feedback.text}</p>
+    <FormFeedback id="feedback-message" feedback={feedback}/>
   </form>;
 }
 
 export function FeedbackPage() {
-  const [feedbacks, setFeedbacks] = useState({ loading: true, list: [] });
-  const [context, setContext] = useState({ account: null, eligible: [] });
+  // Avaliacoes e elegibilidade acompanham novas avaliacoes, pedidos entregues e login (nesta ou em outra aba).
+  const reviews = useAsyncData(getFeedbacks, [], [FEEDBACK_STORAGE_KEY]);
+  const reviewContext = useAsyncData(getReviewContext, [], [FEEDBACK_STORAGE_KEY, ORDER_STORAGE_KEY, SESSION_KEY]);
+  const feedbacks = { loading: reviews.status === 'loading', list: reviews.data || EMPTY_LIST };
+  const context = reviewContext.data || NO_CONTEXT;
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-
-  // Recarrega avaliacoes e elegibilidade ao abrir e quando outra aba grava (avaliacao, pedido entregue, login).
-  useEffect(() => {
-    let active = true;
-    const load = () => Promise.all([getFeedbacks(), getReviewContext()])
-      .then(([list, nextContext]) => { if (active) { setFeedbacks({ loading: false, list }); setContext(nextContext); } })
-      .catch(() => { if (active) setFeedbacks({ loading: false, list: [] }); });
-    load();
-    window.addEventListener('storage', load);
-    return () => { active = false; window.removeEventListener('storage', load); };
-  }, []);
 
   const summary = useMemo(() => summarizeRatings(feedbacks.list), [feedbacks.list]);
   const products = useMemo(() => calculateProductAverages(feedbacks.list), [feedbacks.list]);
@@ -107,9 +105,8 @@ export function FeedbackPage() {
   const filtered = filters.query || filters.productKey || filters.rating;
   const setFilter = patch => setFilters(current => ({ ...current, ...patch }));
 
-  async function handlePublished(published) {
-    setFeedbacks(current => ({ ...current, list: [published, ...current.list] }));
-    setContext(await getReviewContext());
+  // A gravacao dispara a recarga da lista e do formulario; aqui so limpa os filtros para mostrar a nova avaliacao.
+  function handlePublished() {
     setFilters(EMPTY_FILTERS);
   }
 
@@ -150,7 +147,7 @@ export function FeedbackPage() {
           {filtered ? <button type="button" className="link-button" onClick={() => setFilters(current => ({ ...EMPTY_FILTERS, sort: current.sort }))}>Limpar filtros</button> : null}
         </p>
 
-        <div id="feedback-list" className="review-list">{visible.length ? visible.map(item => <article className="review-card" key={`${item.id}-${item.timestamp}`}>
+        <div id="feedback-list" className="review-list" aria-busy={feedbacks.loading}>{reviews.status === 'error' && <ErrorState text="Não foi possível carregar as avaliações." onRetry={reviews.reload}/>}{visible.length ? visible.map(item => <article className="review-card" key={`${item.id}-${item.timestamp}`}>
           <header>
             <span className="review-avatar" aria-hidden="true">{getInitials(item.name)}</span>
             <div><strong>{item.name}</strong><small>{formatDateTime(item.timestamp)}</small></div>
