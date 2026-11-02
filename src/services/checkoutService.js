@@ -1,5 +1,6 @@
 import { ORDER_STATUS, buildOrder, createOrder, setLastOrderReference } from './orderService.js';
 import { validateCheckout } from '../utils/businessRules.js';
+import { AppError, reportError } from '../utils/errors.js';
 
 export const PAYMENT_DELAY_MS = 400;
 
@@ -15,9 +16,9 @@ export function getReceiptUrl(orderNumber) { return `receipt.html?order=${encode
 // So cria pedido quando a validacao passa e o pagamento e aprovado; a pagina limpa o carrinho com o retorno.
 export async function placeOrder({ data, cart, accountEmail = '', processPayment = simulatePayment }) {
   const errors = validateCheckout(data, cart.items.length);
-  if (errors.length) throw new Error(errors[0]);
+  if (errors.length) throw new AppError(errors[0]);
   const payment = await processPayment({ method: data.payment, total: cart.total });
-  if (payment?.status !== 'approved') throw new Error('Pagamento recusado. Nenhum pedido foi criado; tente outra forma de pagamento.');
+  if (payment?.status !== 'approved') throw new AppError('Pagamento recusado. Nenhum pedido foi criado; tente outra forma de pagamento.');
   const order = await createOrder(buildOrder({
     customer: { name: data.name, email: data.email, phone: data.phone, address: data.address, document: data.document || '' },
     items: cart.items,
@@ -29,6 +30,6 @@ export async function placeOrder({ data, cart, accountEmail = '', processPayment
   }));
   // O pedido ja foi gravado: a falha ao guardar a referencia nao pode gerar um segundo pedido no reenvio,
   // e o comprovante recebe o numero pela URL de qualquer forma.
-  try { setLastOrderReference(order.orderNumber); } catch (error) { console.warn(error); }
+  try { setLastOrderReference(order.orderNumber); } catch (error) { reportError('referencia do ultimo pedido', error); }
   return order;
 }

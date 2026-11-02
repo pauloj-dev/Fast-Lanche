@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getMenuItems } from '../services/menuService.js';
+import { getMenuItems, isRestaurantClosed } from '../services/menuService.js';
 import { ProductCard } from '../components/ProductCard.jsx';
 
 const CATEGORIES = [
@@ -15,7 +15,7 @@ export function MenuPage() {
   const [closed, setClosed] = useState(false);
   useEffect(() => {
     getMenuItems().then(setMenuItems);
-    const check = () => { try { setClosed(localStorage.getItem('fastlanche_restaurant_status') === '"closed"'); } catch { setClosed(false); } };
+    const check = () => setClosed(isRestaurantClosed());
     check();
     window.addEventListener('storage', check);
     return () => window.removeEventListener('storage', check);

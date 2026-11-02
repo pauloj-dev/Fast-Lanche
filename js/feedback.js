@@ -7,6 +7,7 @@ import {
   FEEDBACK_LIMITS, FEEDBACK_SORTS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
 } from '../src/utils/businessRules.js';
 import { formatDateTime } from '../src/utils/format.js';
+import { toUserMessage } from '../src/utils/errors.js';
 
 const RATING_LABELS = { 1: 'Péssimo', 2: 'Ruim', 3: 'Regular', 4: 'Muito bom', 5: 'Excelente' };
 const EMPTY_FILTERS = { query: '', productKey: '', rating: 0, sort: 'recent' };
@@ -268,7 +269,7 @@ function renderForm() {
       if (success) { success.textContent = 'Avaliação publicada! Obrigado por compartilhar sua experiência.'; success.dataset.status = 'success'; }
       showToast('Avaliação publicada!', 'success');
     } catch (error) {
-      message.textContent = error?.message || 'Não foi possível publicar sua avaliação.';
+      message.textContent = toUserMessage(error, 'Não foi possível publicar sua avaliação.');
       message.dataset.status = 'error';
       message.setAttribute('role', 'alert');
       submit.disabled = false;

@@ -2,10 +2,14 @@ export const DELIVERY_FEE = 6;
 export const FREE_DELIVERY_MINIMUM = 50;
 export const MAX_GUESTS = 12;
 export const MIN_PASSWORD_LENGTH = 6;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const MAX_PASSWORD_LENGTH = 128;
+import {
+  FIELD_LIMITS, checkTextLength, isValidAddress, isValidDateString, isValidDocument, isValidEmail, isValidPhone,
+  normalizeEmail, sanitizeDeep, sanitizeText
+} from './validation.js';
 
-export const normalizeEmail = value => String(value || '').trim().toLowerCase();
-export const isValidEmail = value => EMAIL_PATTERN.test(normalizeEmail(value));
+// Reexportados: regras e services continuam importando daqui.
+export { FIELD_LIMITS, isValidEmail, normalizeEmail, sanitizeDeep, sanitizeText };
 
 export const calculateSubtotal = items => items.reduce(
   (sum, item) => sum + Math.max(Number(item.price) || 0, 0) * Math.max(Number(item.quantity) || 0, 0), 0
@@ -19,22 +23,34 @@ export const calculateTotal = (subtotal, deliveryFee) => Math.max(subtotal + del
 
 // Cada linha do carrinho e identificada por `cartItemId` (mesmo contrato do js/cart.js legado):
 // o mesmo produto pode aparecer em linhas diferentes quando tem personalizacoes distintas.
+const MAX_CART_LINES = 50;
+const MAX_ITEM_PRICE = 10000;
+const PRODUCT_IMAGE_PATTERN = /^(\.\.\/)?assets\/products\/[\w-]+\.(png|jpe?g|webp|svg)$/;
+
+// Carrinho vindo do localStorage (React ou js/cart.js): somente os campos conhecidos, com texto sanitizado e
+// numeros limitados. Campos desconhecidos sao descartados.
 export function normalizeCart(items = []) {
   const usedLineIds = new Set();
-  const safeItems = (Array.isArray(items) ? items : []).filter(item => item && Number.isFinite(Number(item.id)) && Number.isFinite(Number(item.price)))
+  const safeItems = (Array.isArray(items) ? items : []).slice(0, MAX_CART_LINES)
+    .filter(item => item && typeof item === 'object' && item.id !== null && item.id !== '' && Number.isFinite(Number(item.id)) && Number.isFinite(Number(item.price)))
     .map((item, index) => {
-      let cartItemId = typeof item.cartItemId === 'string' && item.cartItemId ? item.cartItemId : String(Number(item.id));
+      let cartItemId = typeof item.cartItemId === 'string' && /^[\w-]{1,60}$/.test(item.cartItemId) ? item.cartItemId : String(Number(item.id));
       if (usedLineIds.has(cartItemId)) cartItemId = `${cartItemId}_${index}`;
       usedLineIds.add(cartItemId);
-      const maxQuantity = Math.max(Math.floor(Number(item.maxQuantity)) || 99, 1);
-      return {
-        ...item,
+      const maxQuantity = Math.min(Math.max(Math.floor(Number(item.maxQuantity)) || 99, 1), 99);
+      const line = {
         cartItemId,
         id: Number(item.id),
-        price: Math.max(Number(item.price), 0),
+        name: sanitizeText(item.name, FIELD_LIMITS.productName) || 'Item',
+        price: Math.min(Math.max(Number(item.price), 0), MAX_ITEM_PRICE),
         quantity: Math.min(Math.max(Math.floor(Number(item.quantity)) || 1, 1), maxQuantity),
         maxQuantity
       };
+      if (item.unitPrice !== undefined && Number.isFinite(Number(item.unitPrice))) line.unitPrice = Math.min(Math.max(Number(item.unitPrice), 0), MAX_ITEM_PRICE);
+      if (typeof item.category === 'string') line.category = sanitizeText(item.category, FIELD_LIMITS.category);
+      if (typeof item.image === 'string' && PRODUCT_IMAGE_PATTERN.test(item.image)) line.image = item.image;
+      if ('_customization' in item) line._customization = item._customization && typeof item._customization === 'object' ? sanitizeDeep(item._customization) : null;
+      return line;
     });
   const subtotal = calculateSubtotal(safeItems);
   const deliveryFee = calculateDeliveryFee(subtotal);
@@ -43,15 +59,14 @@ export function normalizeCart(items = []) {
 
 export function validateCheckout(data, itemCount) {
   const errors = [];
-  const digits = String(data.phone || '').replace(/\D/g, '');
   if (!itemCount) errors.push('Adicione pelo menos um item ao carrinho.');
-  if (String(data.name || '').trim().length < 3) errors.push('Informe seu nome completo.');
-  if (digits.length < 10 || digits.length > 11) errors.push('Informe um telefone valido.');
+  const name = checkTextLength(data.name, { min: 3, max: FIELD_LIMITS.name });
+  if (name) errors.push(name === 'too_long' ? `O nome pode ter até ${FIELD_LIMITS.name} caracteres.` : 'Informe seu nome completo.');
+  if (!isValidPhone(data.phone)) errors.push('Informe um telefone valido com DDD.');
   if (!isValidEmail(data.email)) errors.push('Informe um e-mail valido.');
-  if (String(data.address || '').trim().length < 8) errors.push('Informe um endereco de entrega valido.');
-  if (!data.payment) errors.push('Selecione uma forma de pagamento.');
-  const documentDigits = String(data.document || '').replace(/\D/g, '');
-  if (data.document && ![11, 14].includes(documentDigits.length)) errors.push('CPF/CNPJ deve ter 11 ou 14 digitos.');
+  if (!isValidAddress(data.address)) errors.push('Informe um endereco de entrega valido (rua, numero e bairro).');
+  if (!['pix', 'card', 'cash'].includes(data.payment)) errors.push('Selecione uma forma de pagamento.');
+  if (String(data.document || '').trim() && !isValidDocument(data.document)) errors.push('CPF/CNPJ invalido. Confira os numeros digitados.');
   return errors;
 }
 
@@ -72,6 +87,7 @@ export const calculateAverageRating = feedbacks => feedbacks.length
 export function validateLogin({ email, password } = {}) {
   if (!String(email || '').trim() || !password) return ['Preencha e-mail e senha.'];
   const errors = [];
+  if (String(password).length > MAX_PASSWORD_LENGTH) return ['E-mail ou senha incorretos.'];
   if (!isValidEmail(email)) errors.push('Informe um e-mail valido.');
   if (String(password).length < MIN_PASSWORD_LENGTH) errors.push(`A senha deve ter no minimo ${MIN_PASSWORD_LENGTH} caracteres.`);
   return errors;
@@ -79,12 +95,13 @@ export function validateLogin({ email, password } = {}) {
 
 export function validateSignup({ name, email, password, confirmPassword, phone } = {}) {
   const errors = [];
-  if (String(name || '').trim().length < 3) errors.push('O nome deve ter pelo menos 3 caracteres.');
+  const nameCheck = checkTextLength(name, { min: 3, max: FIELD_LIMITS.name });
+  if (nameCheck) errors.push(nameCheck === 'too_long' ? `O nome pode ter até ${FIELD_LIMITS.name} caracteres.` : 'O nome deve ter pelo menos 3 caracteres.');
   if (!isValidEmail(email)) errors.push('Informe um e-mail valido.');
   if (String(password || '').length < MIN_PASSWORD_LENGTH) errors.push(`A senha deve ter no minimo ${MIN_PASSWORD_LENGTH} caracteres.`);
+  else if (String(password).length > MAX_PASSWORD_LENGTH) errors.push(`A senha pode ter até ${MAX_PASSWORD_LENGTH} caracteres.`);
   else if (password !== confirmPassword) errors.push('As senhas nao coincidem.');
-  const phoneDigits = String(phone || '').replace(/\D/g, '');
-  if (String(phone || '').trim() && (phoneDigits.length < 10 || phoneDigits.length > 11)) errors.push('Informe um telefone valido com DDD.');
+  if (String(phone || '').trim() && !isValidPhone(phone)) errors.push('Informe um telefone valido com DDD.');
   return errors;
 }
 
@@ -98,12 +115,7 @@ export const AVATAR_MAX_DATA_URL_LENGTH = 300 * 1024;
 const AVATAR_DATA_URL_PATTERN = /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/]+=*$/i;
 
 // Texto livre de formulario: sem tags, sem caracteres de controle, espacos colapsados e tamanho limitado.
-export const sanitizeText = (value, maxLength) => String(value ?? '')
-  .replace(/[<>]/g, '')
-  .replace(/[\u0000-\u001f\u007f]/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim()
-  .slice(0, maxLength);
+
 
 export function getInitials(name, fallback = '?') {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -114,10 +126,9 @@ export function getInitials(name, fallback = '?') {
 export function validateProfile({ name, phone, address, paymentMethod } = {}) {
   const errors = [];
   if (sanitizeText(name, PROFILE_LIMITS.name).length < 3) errors.push('O nome deve ter pelo menos 3 caracteres.');
-  const phoneDigits = String(phone || '').replace(/\D/g, '');
-  if (String(phone || '').trim() && (phoneDigits.length < 10 || phoneDigits.length > 11)) errors.push('Informe um telefone valido com DDD.');
-  const cleanAddress = sanitizeText(address, PROFILE_LIMITS.address);
-  if (cleanAddress && cleanAddress.length < 8) errors.push('Informe um endereco valido (minimo 8 caracteres).');
+  if (String(name || '').trim().length > PROFILE_LIMITS.name) errors.push(`O nome pode ter até ${PROFILE_LIMITS.name} caracteres.`);
+  if (String(phone || '').trim() && !isValidPhone(phone)) errors.push('Informe um telefone valido com DDD.');
+  if (String(address || '').trim() && !isValidAddress(address)) errors.push('Informe um endereco valido (minimo 8 caracteres, com rua e numero).');
   if (!PROFILE_PAYMENT_METHODS.includes(paymentMethod ?? '')) errors.push('Forma de pagamento preferida invalida.');
   return errors;
 }
@@ -182,7 +193,7 @@ export const calculateBookingFee = () => BOOKING_FEE;
 export function validateBooking(date, time, guests, today = new Date()) {
   const errors = [];
   const currentDate = toLocalDateString(today);
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push('Selecione uma data para a reserva.');
+  if (!date || !isValidDateString(date)) errors.push('Selecione uma data válida para a reserva.');
   else if (date < currentDate) errors.push('A data da reserva não pode ser no passado.');
   else if (date > toLocalDateString(addDays(today, BOOKING_MAX_DAYS_AHEAD))) errors.push(`Reservas podem ser feitas com até ${BOOKING_MAX_DAYS_AHEAD} dias de antecedência.`);
   if (!time) errors.push('Selecione um horário para a reserva.');
@@ -197,8 +208,8 @@ export function validateBookingContact({ name, phone, paymentMethod, occasion = 
   if (!BOOKING_OCCASIONS.some(([value]) => value === occasion)) errors.push('Ocasião inválida.');
   if (String(notes || '').trim().length > BOOKING_NOTES_MAX) errors.push(`As observações podem ter até ${BOOKING_NOTES_MAX} caracteres.`);
   if (sanitizeText(name, PROFILE_LIMITS.name).length < 3) errors.push('Informe o nome de quem fará a reserva.');
-  const digits = String(phone || '').replace(/\D/g, '');
-  if (digits.length < 10 || digits.length > 11) errors.push('Informe um telefone válido com DDD.');
+  if (String(name || '').trim().length > PROFILE_LIMITS.name) errors.push(`O nome pode ter até ${PROFILE_LIMITS.name} caracteres.`);
+  if (!isValidPhone(phone)) errors.push('Informe um telefone válido com DDD.');
   if (!BOOKING_PAYMENT_METHODS.includes(paymentMethod)) errors.push('Selecione como pagar a taxa de reserva.');
   return errors;
 }

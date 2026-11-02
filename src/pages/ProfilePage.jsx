@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { AUTH_CHANGE_EVENT, logout } from '../services/authService.js';
+import { AUTH_CHANGE_EVENT, getLoginUrl, logout } from '../services/authService.js';
+import { useRequireSession } from '../hooks/useRequireSession.js';
+import { toUserMessage } from '../utils/errors.js';
 import { getOrderHistory, getProfile, getProfileCompletion, prepareAvatarFile, removeAvatar, summarizeOrders, updateAvatar, updateProfile } from '../services/profileService.js';
 import { getOrderStatusClass, getOrderStatusLabel } from '../services/orderService.js';
 import { getReceiptUrl } from '../services/checkoutService.js';
 import { AVATAR_ACCEPTED_TYPES, getInitials } from '../utils/businessRules.js';
 import { formatCurrency as currency, formatDateTime } from '../utils/format.js';
 
-export const PROFILE_LOGIN_URL = 'login.html?redirect=perfil.html';
+export const PROFILE_LOGIN_URL = getLoginUrl('perfil.html');
 const PAYMENT_PREFERENCES = [['pix', '⚡', 'Pix', 'Aprovação na hora'], ['card', '💳', 'Cartão', 'Crédito ou débito'], ['cash', '💵', 'Dinheiro', 'Pague na entrega'], ['', '🤔', 'Decidir depois', 'Escolho no checkout']];
 const RECENT_ORDERS_LIMIT = 4;
 const toFields = profile => ({ name: profile.name, phone: profile.phone, address: profile.address, paymentMethod: profile.preferences.paymentMethod, notifications: profile.preferences.notifications });
@@ -72,20 +74,18 @@ export function ProfilePage() {
   const [orders, setOrders] = useState({ loading: true, orders: [], error: '' });
   const fileInput = useRef(null);
   const nameInput = useRef(null);
-  const loggedIn = Boolean(profile);
+  // Protecao da pagina: sem sessao valida (inclusive logout/expiracao em outra aba) volta para o login.
+  const session = useRequireSession('perfil.html');
+  const loggedIn = Boolean(session && profile);
 
-  // Protecao da pagina: sem sessao (inclusive logout em outra aba) volta para o login.
+  // Perfil alterado em outra aba (ou no modal legado) e recarregado.
   useEffect(() => {
-    if (!loggedIn) { window.location.replace(PROFILE_LOGIN_URL); return undefined; }
-    const refresh = () => {
-      const next = getProfile();
-      if (!next) { window.location.replace(PROFILE_LOGIN_URL); return; }
-      setProfile(next);
-    };
+    if (!session) return undefined;
+    const refresh = () => { const next = getProfile(); if (next) setProfile(next); };
     window.addEventListener('storage', refresh);
     window.addEventListener(AUTH_CHANGE_EVENT, refresh);
     return () => { window.removeEventListener('storage', refresh); window.removeEventListener(AUTH_CHANGE_EVENT, refresh); };
-  }, [loggedIn]);
+  }, [session]);
 
   useEffect(() => {
     if (!loggedIn) return undefined;
@@ -96,7 +96,7 @@ export function ProfilePage() {
     return () => { active = false; };
   }, [loggedIn]);
 
-  if (!profile) return <main id="top" className="page-section"><div className="container"><div className="empty-state" role="status"><span className="empty-state-icon">🔒</span><span className="empty-state-text">Faça login para acessar seu perfil. Redirecionando...</span><a className="button button-primary" href={PROFILE_LOGIN_URL}>Ir para o login</a></div></div></main>;
+  if (!loggedIn) return <main id="top" className="page-section"><div className="container"><div className="empty-state" role="status"><span className="empty-state-icon">🔒</span><span className="empty-state-text">Faça login para acessar seu perfil. Redirecionando...</span><a className="button button-primary" href={PROFILE_LOGIN_URL}>Ir para o login</a></div></div></main>;
 
   const dirty = !sameFields(fields, toFields(profile));
   const completion = getProfileCompletion(profile);
@@ -117,7 +117,7 @@ export function ProfilePage() {
       setFields(toFields(saved));
       setFeedback({ text: 'Perfil salvo! Seus dados já aparecem no checkout.', status: 'success' });
     } catch (error) {
-      setFeedback({ text: error?.message || 'Não foi possível salvar o perfil.', status: 'error' });
+      setFeedback({ text: toUserMessage(error, 'Não foi possível salvar o perfil.'), status: 'error' });
       nameInput.current?.focus();
     } finally { setPending(false); }
   }
@@ -135,7 +135,7 @@ export function ProfilePage() {
       setProfile(await updateAvatar(await prepareAvatarFile(file)));
       setAvatarFeedback({ text: 'Foto atualizada.', status: 'success' });
     } catch (error) {
-      setAvatarFeedback({ text: error?.message || 'Não foi possível usar esta imagem.', status: 'error' });
+      setAvatarFeedback({ text: toUserMessage(error, 'Não foi possível usar esta imagem.'), status: 'error' });
     } finally { setAvatarPending(false); }
   }
 
@@ -149,7 +149,7 @@ export function ProfilePage() {
     try {
       setProfile(await removeAvatar());
       setAvatarFeedback({ text: 'Foto removida.', status: 'success' });
-    } catch (error) { setAvatarFeedback({ text: error?.message || 'Não foi possível remover a foto.', status: 'error' }); }
+    } catch (error) { setAvatarFeedback({ text: toUserMessage(error, 'Não foi possível remover a foto.'), status: 'error' }); }
   }
 
   return <main id="top"><section id="profile-page" className="page-section account-page" aria-labelledby="profile-page-title"><div className="container account-container">

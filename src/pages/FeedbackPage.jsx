@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toUserMessage } from '../utils/errors.js';
 import { getFeedbacks, getReviewContext, publishFeedback } from '../services/feedbackService.js';
 import {
   FEEDBACK_LIMITS, FEEDBACK_SORTS, calculateProductAverages, filterFeedbacks, getInitials, getProductKey, summarizeRatings
@@ -52,7 +53,7 @@ function ReviewForm({ context, onPublished }) {
       setFeedback({ text: 'Avaliação publicada! Obrigado por compartilhar sua experiência.', status: 'success' });
       onPublished(published);
     } catch (error) {
-      setFeedback({ text: error?.message || 'Não foi possível publicar sua avaliação.', status: 'error' });
+      setFeedback({ text: toUserMessage(error, 'Não foi possível publicar sua avaliação.'), status: 'error' });
     } finally { setPending(false); }
   }
 

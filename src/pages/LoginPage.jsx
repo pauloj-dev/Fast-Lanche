@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { toUserMessage } from '../utils/errors.js';
 import { ProductImage } from '../components/ProductImage.jsx';
 import { AUTH_CHANGE_EVENT, getAccount, getSafeRedirect, login, logout, register } from '../services/authService.js';
 
@@ -40,14 +41,14 @@ export function LoginPage() {
       setFeedback({ text: `${mode === 'signup' ? 'Conta criada' : 'Login realizado'}! Ola, ${session.name.split(' ')[0]}. Redirecionando...`, status: 'success' });
       window.setTimeout(() => { window.location.href = redirect; }, REDIRECT_DELAY_MS);
     } catch (error) {
-      setFeedback({ text: error?.message || 'Nao foi possivel concluir. Tente novamente.', status: 'error' });
+      setFeedback({ text: toUserMessage(error, 'Nao foi possivel concluir. Tente novamente.'), status: 'error' });
       setPending(false);
       firstField.current?.focus();
     }
   }
 
   async function handleLogout() {
-    try { await logout(); } catch (error) { setFeedback({ text: error.message, status: 'error' }); }
+    try { await logout(); } catch (error) { setFeedback({ text: toUserMessage(error, 'Nao foi possivel encerrar a sessao.'), status: 'error' }); }
   }
 
   if (account.loggedIn && !pending) {

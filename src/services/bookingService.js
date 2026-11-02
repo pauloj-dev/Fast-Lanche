@@ -5,6 +5,9 @@ import {
   BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_NOTES_MAX, BOOKING_OCCASIONS, BOOKING_OPENING, BOOKING_TABLES, MAX_GUESTS, allocateTable, calculateBookingFee, getDayAvailability, normalizeEmail,
   sanitizeText, validateBooking, validateBookingContact
 } from '../utils/businessRules.js';
+import { readSession } from './authService.js';
+import { AppError } from '../utils/errors.js';
+import { readArray, readText, writeJSON, writeText } from './storage/safeStorage.js';
 
 export const BOOKING_STORAGE_KEY = 'fastlanche_bookings';
 export const LAST_BOOKING_REFERENCE_KEY = 'fastlanche_last_booking';
@@ -13,13 +16,7 @@ export const BOOKING_STATUS_LABELS = Object.freeze({ [BOOKING_STATUS.CONFIRMED]:
 export const BOOKING_PAYMENT_LABELS = Object.freeze({ pix: 'Pix', card: 'Cartão de crédito/débito' });
 export const PAYMENT_DELAY_MS = 500;
 
-function getStorage() {
-  try { return globalThis.localStorage || null; } catch { return null; }
-}
-function readRawBookings(storage) {
-  try { const parsed = JSON.parse(storage.getItem(BOOKING_STORAGE_KEY) || '[]'); return Array.isArray(parsed) ? parsed : []; }
-  catch { return []; }
-}
+function readRawBookings() { return readArray(BOOKING_STORAGE_KEY); }
 
 // O que vem do localStorage nao e confiavel: registro sem data/horario/pessoas validos e ignorado.
 export function normalizeBooking(input) {
@@ -47,15 +44,14 @@ export function normalizeBooking(input) {
   };
 }
 
-function readBookings(storage) { return readRawBookings(storage).map(normalizeBooking).filter(Boolean); }
+function readBookings() { return readRawBookings().map(normalizeBooking).filter(Boolean); }
 
-export async function getBookings() { const storage = getStorage(); return storage ? readBookings(storage) : []; }
+export async function getBookings() { return readBookings(); }
 
 // Situacao de todos os horarios do dia para o tamanho do grupo. Sempre le o armazenamento de novo,
 // entao reservas feitas em outra aba aparecem na proxima consulta.
 export async function getAvailability(date, guests, now = new Date()) {
-  const storage = getStorage();
-  return getDayAvailability(storage ? readBookings(storage) : [], date, guests, now);
+  return getDayAvailability(readBookings(), date, guests, now);
 }
 
 // Numero estavel e legivel: data da reserva + sufixo aleatorio (ex.: RS-20261105-K3F9).
@@ -74,19 +70,17 @@ export async function simulateBookingPayment({ method, simulateFailure = false }
 export async function createBooking(input, { processPayment = simulateBookingPayment, now = new Date() } = {}) {
   const guests = Number(input.guests);
   const errors = [...validateBooking(input.date, input.time, guests, now), ...validateBookingContact(input)];
-  if (errors.length) throw new Error(errors[0]);
-  const storage = getStorage();
-  if (!storage) throw new Error('Armazenamento do navegador indisponível.');
+  if (errors.length) throw new AppError(errors[0]);
   const request = { date: input.date, time: input.time, guests };
-  if (!allocateTable(readBookings(storage), request)) throw new Error('Não há mesas livres para este horário. Escolha outro horário.');
+  if (!allocateTable(readBookings(), request)) throw new AppError('Não há mesas livres para este horário. Escolha outro horário.');
 
   const fee = calculateBookingFee(guests);
   const payment = await processPayment({ method: input.paymentMethod, total: fee, simulateFailure: Boolean(input.simulateFailure) });
-  if (payment?.status !== 'approved') throw new Error('Pagamento recusado. Nenhuma mesa foi bloqueada; tente outra forma de pagamento.');
+  if (payment?.status !== 'approved') throw new AppError('Pagamento recusado. Nenhuma mesa foi bloqueada; tente outra forma de pagamento.');
 
   // Outra aba pode ter reservado durante o pagamento: recarrega antes de confirmar.
-  const table = allocateTable(readBookings(storage), request);
-  if (!table) throw new Error('Este horário lotou enquanto o pagamento era processado. O valor foi estornado (simulado); escolha outro horário.');
+  const table = allocateTable(readBookings(), request);
+  if (!table) throw new AppError('Este horário lotou enquanto o pagamento era processado. O valor foi estornado (simulado); escolha outro horário.');
 
   const booking = {
     id: Date.now(),
@@ -100,22 +94,36 @@ export async function createBooking(input, { processPayment = simulateBookingPay
     status: BOOKING_STATUS.CONFIRMED,
     createdAt: new Date().toISOString()
   };
-  try {
-    storage.setItem(BOOKING_STORAGE_KEY, JSON.stringify([...readRawBookings(storage), booking]));
-  } catch { throw new Error('Não foi possível salvar a reserva. O valor foi estornado (simulado); tente novamente.'); }
-  try { storage.setItem(LAST_BOOKING_REFERENCE_KEY, booking.bookingNumber); } catch { /* a URL da confirmacao ja carrega a referencia */ }
+  try { writeJSON(BOOKING_STORAGE_KEY, [...readRawBookings(), booking]); }
+  catch (error) { throw new AppError('Não foi possível salvar a reserva. O valor foi estornado (simulado); tente novamente.', { cause: error }); }
+  try { writeText(LAST_BOOKING_REFERENCE_KEY, booking.bookingNumber); } catch { /* a URL da confirmacao ja carrega a referencia */ }
   return normalizeBooking(booking);
 }
 
 export async function getBooking(bookingNumber) {
   const reference = sanitizeText(bookingNumber, 40);
   if (!reference) return null;
-  const storage = getStorage();
-  return storage ? readBookings(storage).find(booking => booking.bookingNumber === reference) || null : null;
+  return readBookings().find(booking => booking.bookingNumber === reference) || null;
 }
 
 export function getLastBookingReference() {
-  try { return sanitizeText(getStorage()?.getItem(LAST_BOOKING_REFERENCE_KEY), 40); } catch { return ''; }
+  return sanitizeText(readText(LAST_BOOKING_REFERENCE_KEY, ''), 40);
+}
+
+// Mesma regra do comprovante de pedido: reserva de conta so para a propria conta; reserva sem conta so para o
+// navegador que a fez. A recusa nao expoe nome, telefone nem observacoes.
+export function canViewBooking(booking, session = readSession(), lastReference = getLastBookingReference()) {
+  if (!booking) return 'not_found';
+  if (booking.userProfileId) {
+    if (!session) return 'login_required';
+    return session.email === booking.userProfileId ? 'ok' : 'forbidden';
+  }
+  return booking.bookingNumber === lastReference ? 'ok' : 'forbidden';
+}
+export async function getBookingForViewer(bookingNumber) {
+  const booking = await getBooking(bookingNumber);
+  const access = canViewBooking(booking);
+  return { access, booking: access === 'ok' ? booking : null };
 }
 
 export function getBookingConfirmationUrl(bookingNumber) { return `reservas.html?reserva=${encodeURIComponent(bookingNumber)}`; }

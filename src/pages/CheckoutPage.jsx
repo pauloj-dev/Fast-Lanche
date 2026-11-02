@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toUserMessage } from '../utils/errors.js';
 import { useCart } from '../context/CartContext.jsx';
 import { readSession } from '../services/authService.js';
 import { getCheckoutDefaults } from '../services/profileService.js';
@@ -34,7 +35,7 @@ export function CheckoutPage() {
       clear();
       window.location.href = getReceiptUrl(order.orderNumber);
     } catch (error) {
-      setFeedback({ text: error?.message || 'Nao foi possivel finalizar o pedido. Tente novamente.', status: 'error' });
+      setFeedback({ text: toUserMessage(error, 'Nao foi possivel finalizar o pedido. Tente novamente.'), status: 'error' });
       setPending(false);
     }
   }

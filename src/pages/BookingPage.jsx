@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { readSession } from '../services/authService.js';
+import { getLoginUrl, readSession } from '../services/authService.js';
+import { getAccessMessage } from '../utils/access.js';
+import { toUserMessage } from '../utils/errors.js';
 import { getCheckoutDefaults } from '../services/profileService.js';
 import {
-  createBooking, getAvailability, getBooking, getBookingHighlights, getBookingConfirmationUrl, getBookingOccasionLabel, getBookingPaymentLabel, getBookingStatusLabel
+  createBooking, getAvailability, getBookingForViewer, getBookingHighlights, getBookingConfirmationUrl, getBookingOccasionLabel, getBookingPaymentLabel, getBookingStatusLabel
 } from '../services/bookingService.js';
 import {
   BOOKING_DURATION_MINUTES, BOOKING_FEE, BOOKING_LAST_SLOT, BOOKING_MAX_DAYS_AHEAD, BOOKING_NOTES_MAX, BOOKING_OCCASIONS, BOOKING_OPENING,
@@ -28,11 +30,13 @@ function BookingConfirmation({ reference }) {
   const [state, setState] = useState({ loading: true, booking: null });
   useEffect(() => {
     let active = true;
-    getBooking(reference).then(booking => { if (active) setState({ loading: false, booking }); }).catch(() => { if (active) setState({ loading: false, booking: null }); });
+    getBookingForViewer(reference)
+      .then(({ access, booking }) => { if (active) setState({ loading: false, booking, access }); })
+      .catch(() => { if (active) setState({ loading: false, booking: null, access: 'not_found' }); });
     return () => { active = false; };
   }, [reference]);
   if (state.loading) return <div className="empty-state" role="status">Carregando reserva...</div>;
-  if (!state.booking) return <div className="empty-state" role="alert"><span className="empty-state-icon">🪑</span><span className="empty-state-text">Não encontramos esta reserva.</span><a className="button button-primary" href="reservas.html">Fazer uma reserva</a></div>;
+  if (!state.booking) return <div className="empty-state" role="alert"><span className="empty-state-icon">🪑</span><span className="empty-state-text">{getAccessMessage(state.access, 'booking')}</span>{state.access === 'login_required' || state.access === 'forbidden' ? <a className="button button-primary" href={getLoginUrl('reservas.html')}>Entrar na conta</a> : <a className="button button-primary" href="reservas.html">Fazer uma reserva</a>}</div>;
   const { booking } = state;
   return <article className="booking-ticket" aria-labelledby="booking-ticket-title">
     <header className="booking-ticket-head">
@@ -105,7 +109,7 @@ export function BookingPage() {
       const booking = await createBooking({ ...form, accountEmail: readSession()?.email || '' });
       window.location.href = getBookingConfirmationUrl(booking.bookingNumber);
     } catch (error) {
-      setFeedback({ text: error?.message || 'Não foi possível concluir a reserva.', status: 'error' });
+      setFeedback({ text: toUserMessage(error, 'Não foi possível concluir a reserva.'), status: 'error' });
       setPending(false);
       // Recarrega os horarios: o erro pode ter sido lotacao.
       getAvailability(form.date, form.guests).then(list => setSlots({ loading: false, list })).catch(() => {});

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getLastOrderReference, getOrder, getOrderStatusClass, getOrderStatusLabel, getPaymentLabel } from '../services/orderService.js';
+import { getLoginUrl } from '../services/authService.js';
+import { getAccessMessage } from '../utils/access.js';
+import { toUserMessage } from '../utils/errors.js';
+import { getLastOrderReference, getOrderForViewer, getOrderStatusClass, getOrderStatusLabel, getPaymentLabel } from '../services/orderService.js';
 
 const currency = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateTime = value => {
@@ -28,13 +31,14 @@ export function ReceiptPage() {
     let active = true;
     const reference = getReceiptReference(window.location.search);
     if (!reference) { setState({ loading: false, order: null, error: 'Nenhum pedido recente foi encontrado.' }); return () => { active = false; }; }
-    getOrder(reference).then(order => {
-      if (active) setState({ loading: false, order, error: order ? '' : 'Nao foi possivel encontrar este pedido.' });
-    }).catch(() => { if (active) setState({ loading: false, order: null, error: 'Nao foi possivel carregar o comprovante.' }); });
+    // Comprovante tem dados pessoais: so a conta (ou o navegador) do pedido pode ve-lo.
+    getOrderForViewer(reference).then(({ access, order }) => {
+      if (active) setState({ loading: false, order, access, error: order ? '' : getAccessMessage(access, 'order') });
+    }).catch(error => { if (active) setState({ loading: false, order: null, error: toUserMessage(error, 'Nao foi possivel carregar o comprovante.') }); });
     return () => { active = false; };
   }, []);
   if (state.loading) return <main className="page-section"><div className="container"><div className="empty-state" role="status">Carregando comprovante...</div></div></main>;
-  if (state.error || !state.order) return <main className="page-section"><div className="container receipt-empty"><div className="empty-state" role="alert"><span className="empty-state-icon">🧾</span><span className="empty-state-text">{state.error}</span><a className="button button-primary" href="cardapio.html">Voltar ao cardapio</a></div></div></main>;
+  if (state.error || !state.order) return <main className="page-section"><div className="container receipt-empty"><div className="empty-state" role="alert"><span className="empty-state-icon">🧾</span><span className="empty-state-text">{state.error}</span>{state.access === 'login_required' || state.access === 'forbidden' ? <a className="button button-primary" href={getLoginUrl('perfil.html')}>Entrar na conta</a> : <a className="button button-primary" href="cardapio.html">Voltar ao cardapio</a>}</div></div></main>;
   const { order } = state;
   const paymentApproved = order.paymentStatus === 'approved';
   return <main id="top"><section className="page-section receipt-page-section" aria-labelledby="receipt-page-title"><div className="container receipt-page-container">

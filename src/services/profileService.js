@@ -2,6 +2,7 @@
 // (unico dono das chaves de conta) e os pedidos em orderService, o que permite trocar ambos por API depois.
 import { getCurrentProfile, readSession, saveAccountProfile } from './authService.js';
 import { getOrders } from './orderService.js';
+import { AppError } from '../utils/errors.js';
 import {
   AVATAR_MAX_DATA_URL_LENGTH, LEGACY_AVATAR_MAX_DATA_URL_LENGTH, PROFILE_LIMITS, PROFILE_PAYMENT_METHODS,
   isValidAvatarDataUrl, sanitizeText, validateAvatarFile, validateProfile
@@ -41,10 +42,10 @@ export function getProfile() {
 
 export async function updateProfile(input = {}) {
   const current = getProfile();
-  if (!current) throw new Error('Sessao expirada. Faca login novamente.');
+  if (!current) throw new AppError('Sessao expirada. Faca login novamente.');
   const preferences = { ...current.preferences, ...(input.preferences || {}) };
   const errors = validateProfile({ ...input, paymentMethod: preferences.paymentMethod });
-  if (errors.length) throw new Error(errors[0]);
+  if (errors.length) throw new AppError(errors[0]);
   const next = normalizeProfile({
     ...current,
     name: input.name,
@@ -57,14 +58,14 @@ export async function updateProfile(input = {}) {
 
 export async function updateAvatar(dataUrl) {
   const current = getProfile();
-  if (!current) throw new Error('Sessao expirada. Faca login novamente.');
-  if (!isValidAvatarDataUrl(dataUrl)) throw new Error('Imagem invalida ou grande demais para o perfil.');
+  if (!current) throw new AppError('Sessao expirada. Faca login novamente.');
+  if (!isValidAvatarDataUrl(dataUrl)) throw new AppError('Imagem invalida ou grande demais para o perfil.');
   return normalizeProfile(saveAccountProfile({ ...current, avatar: dataUrl }), current.email);
 }
 
 export async function removeAvatar() {
   const current = getProfile();
-  if (!current) throw new Error('Sessao expirada. Faca login novamente.');
+  if (!current) throw new AppError('Sessao expirada. Faca login novamente.');
   return normalizeProfile(saveAccountProfile({ ...current, avatar: '' }), current.email);
 }
 
@@ -89,13 +90,13 @@ export function getCheckoutDefaults() {
 // A decodificacao tambem rejeita arquivos com extensao/tipo falsos. Somente navegador.
 export function prepareAvatarFile(file) {
   const error = validateAvatarFile(file);
-  if (error) return Promise.reject(new Error(error));
+  if (error) return Promise.reject(new AppError(error));
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
+    reader.onerror = () => reject(new AppError('Nao foi possivel ler a imagem.'));
     reader.onload = () => {
       const image = new Image();
-      image.onerror = () => reject(new Error('O arquivo nao e uma imagem valida.'));
+      image.onerror = () => reject(new AppError('O arquivo nao e uma imagem valida.'));
       image.onload = () => {
         try {
           const scale = Math.min(1, AVATAR_SIZE / Math.max(image.naturalWidth, image.naturalHeight));
@@ -108,9 +109,9 @@ export function prepareAvatarFile(file) {
           context.fillRect(0, 0, canvas.width, canvas.height);
           context.drawImage(image, 0, 0, canvas.width, canvas.height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          if (!isValidAvatarDataUrl(dataUrl, AVATAR_MAX_DATA_URL_LENGTH)) reject(new Error('Nao foi possivel processar esta imagem.'));
+          if (!isValidAvatarDataUrl(dataUrl, AVATAR_MAX_DATA_URL_LENGTH)) reject(new AppError('Nao foi possivel processar esta imagem.'));
           else resolve(dataUrl);
-        } catch { reject(new Error('Nao foi possivel processar esta imagem.')); }
+        } catch { reject(new AppError('Nao foi possivel processar esta imagem.')); }
       };
       image.src = String(reader.result);
     };

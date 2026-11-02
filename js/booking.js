@@ -5,7 +5,7 @@ import { showToast } from './ui.js';
 import { readSession } from '../src/services/authService.js';
 import { getCheckoutDefaults } from '../src/services/profileService.js';
 import {
-  createBooking, getAvailability, getBooking, getBookingConfirmationUrl, getBookingHighlights,
+  createBooking, getAvailability, getBookingForViewer, getBookingConfirmationUrl, getBookingHighlights,
   getBookingOccasionLabel, getBookingPaymentLabel, getBookingStatusLabel
 } from '../src/services/bookingService.js';
 import {
@@ -13,6 +13,8 @@ import {
   BOOKING_OCCASIONS, BOOKING_OPENING, MAX_GUESTS, getUpcomingBookingDates, toLocalDateString
 } from '../src/utils/businessRules.js';
 import { formatCurrency } from '../src/utils/format.js';
+import { getAccessMessage } from '../src/utils/access.js';
+import { toUserMessage } from '../src/utils/errors.js';
 
 const SLOT_HINTS = { available: '', few: 'Últimas mesas', full: 'Lotado', past: 'Encerrado' };
 const state = { date: toLocalDateString(), guests: 2, time: '', occasion: '', slots: [], pending: false };
@@ -164,7 +166,7 @@ async function handleSubmit(event) {
     });
     window.location.href = getBookingConfirmationUrl(booking.bookingNumber);
   } catch (error) {
-    const message = error?.message || 'Não foi possível concluir a reserva.';
+    const message = toUserMessage(error, 'Não foi possível concluir a reserva.');
     setFeedback(message, 'error');
     showToast(message, 'error');
     state.pending = false;
@@ -180,13 +182,15 @@ async function renderConfirmation(reference) {
   document.getElementById('booking-root').hidden = true;
   container.hidden = false;
   container.replaceChildren(el('div', 'empty-state', 'Carregando reserva...'));
-  const booking = await getBooking(reference).catch(() => null);
+  // Confirmacao tem dados pessoais: so a conta (ou o navegador) que reservou pode ve-la.
+  const { access, booking } = await getBookingForViewer(reference).catch(() => ({ access: 'not_found', booking: null }));
   if (!booking) {
     const empty = el('div', 'empty-state');
     empty.setAttribute('role', 'alert');
-    const link = el('a', 'button button-primary', 'Fazer uma reserva');
-    link.href = 'reservas.html';
-    empty.append(el('span', 'empty-state-icon', '🪑'), el('span', 'empty-state-text', 'Não encontramos esta reserva.'), link);
+    const needsLogin = access === 'login_required' || access === 'forbidden';
+    const link = el('a', 'button button-primary', needsLogin ? 'Entrar na conta' : 'Fazer uma reserva');
+    link.href = needsLogin ? 'login.html' : 'reservas.html';
+    empty.append(el('span', 'empty-state-icon', '🪑'), el('span', 'empty-state-text', getAccessMessage(access, 'booking')), link);
     container.replaceChildren(empty);
     return;
   }

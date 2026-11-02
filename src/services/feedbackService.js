@@ -4,16 +4,12 @@
 import { getCurrentProfile, readSession } from './authService.js';
 import { ORDER_STATUS, getOrders } from './orderService.js';
 import { FEEDBACK_LIMITS, getProductKey, normalizeEmail, sanitizeText, validateFeedback } from '../utils/businessRules.js';
+import { readArray, writeJSON } from './storage/safeStorage.js';
+import { AppError } from '../utils/errors.js';
 
 export const FEEDBACK_STORAGE_KEY = 'fastlanche_feedbacks';
 
-function getStorage() {
-  try { return globalThis.localStorage || null; } catch { return null; }
-}
-function readRawFeedbacks(storage) {
-  try { const parsed = JSON.parse(storage.getItem(FEEDBACK_STORAGE_KEY) || '[]'); return Array.isArray(parsed) ? parsed : []; }
-  catch { return []; }
-}
+function readRawFeedbacks() { return readArray(FEEDBACK_STORAGE_KEY); }
 
 // O que vem do localStorage nao e confiavel: tudo e revalidado, sanitizado e limitado ao carregar.
 export function normalizeFeedback(input) {
@@ -40,11 +36,10 @@ export function normalizeFeedback(input) {
   };
 }
 
-function readFeedbacks(storage) { return readRawFeedbacks(storage).map(normalizeFeedback).filter(Boolean); }
+function readFeedbacks() { return readRawFeedbacks().map(normalizeFeedback).filter(Boolean); }
 
 export async function getFeedbacks() {
-  const storage = getStorage();
-  return storage ? readFeedbacks(storage) : [];
+  return readFeedbacks();
 }
 
 // Produtos que a conta pode avaliar: itens de pedidos entregues dela. Cada (pedido, produto) e avaliado uma unica vez.
@@ -68,31 +63,28 @@ export function getEligibleProducts(orders, feedbacks, email) {
 export async function getReviewContext() {
   const session = readSession();
   if (!session) return { account: null, eligible: [] };
-  const storage = getStorage();
-  const eligible = getEligibleProducts(await getOrders(), storage ? readFeedbacks(storage) : [], session.email);
+  const eligible = getEligibleProducts(await getOrders(), readFeedbacks(), session.email);
   const profile = getCurrentProfile() || {};
   return { account: { email: session.email, name: sanitizeText(profile.name || session.name, FEEDBACK_LIMITS.name) }, eligible };
 }
 
 export async function publishFeedback({ rating, comment, productKeys = [] } = {}) {
   const session = readSession();
-  if (!session) throw new Error('Entre na sua conta para avaliar seus pedidos.');
-  const storage = getStorage();
-  if (!storage) throw new Error('Armazenamento do navegador indisponível.');
+  if (!session) throw new AppError('Entre na sua conta para avaliar seus pedidos.');
   const profile = getCurrentProfile() || {};
   const name = sanitizeText(profile.name || session.name, FEEDBACK_LIMITS.name);
   const errors = validateFeedback({ name, rating, comment });
-  if (errors.length) throw new Error(errors[0]);
+  if (errors.length) throw new AppError(errors[0]);
   const keys = [...new Set((Array.isArray(productKeys) ? productKeys : []).map(String))];
-  if (!keys.length) throw new Error('Selecione ao menos um produto para avaliar.');
-  if (keys.length > FEEDBACK_LIMITS.products) throw new Error(`Avalie até ${FEEDBACK_LIMITS.products} produtos por vez.`);
+  if (!keys.length) throw new AppError('Selecione ao menos um produto para avaliar.');
+  if (keys.length > FEEDBACK_LIMITS.products) throw new AppError(`Avalie até ${FEEDBACK_LIMITS.products} produtos por vez.`);
 
   // Recarrega pedidos e avaliacoes: outra aba pode ter avaliado o mesmo produto.
-  const eligible = new Map(getEligibleProducts(await getOrders(), readFeedbacks(storage), session.email).map(item => [item.key, item]));
+  const eligible = new Map(getEligibleProducts(await getOrders(), readFeedbacks(), session.email).map(item => [item.key, item]));
   const selected = keys.map(key => eligible.get(key));
-  if (selected.some(item => !item)) throw new Error('Só é possível avaliar produtos de pedidos entregues da sua conta.');
+  if (selected.some(item => !item)) throw new AppError('Só é possível avaliar produtos de pedidos entregues da sua conta.');
   const repeated = selected.find(item => item.reviewed);
-  if (repeated) throw new Error(`Você já avaliou ${repeated.name} do pedido ${repeated.orderNumber}.`);
+  if (repeated) throw new AppError(`Você já avaliou ${repeated.name} do pedido ${repeated.orderNumber}.`);
 
   const record = {
     id: Date.now(),
@@ -106,7 +98,7 @@ export async function publishFeedback({ rating, comment, productKeys = [] } = {}
     productIds: selected.map(item => item.productId).filter(id => id !== null),
     productNames: selected.map(item => sanitizeText(item.name, FEEDBACK_LIMITS.productName))
   };
-  try { storage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify([record, ...readRawFeedbacks(storage)])); }
-  catch { throw new Error('Não foi possível salvar sua avaliação. Tente novamente.'); }
+  try { writeJSON(FEEDBACK_STORAGE_KEY, [record, ...readRawFeedbacks()]); }
+  catch (error) { throw new AppError('Não foi possível salvar sua avaliação. Tente novamente.', { cause: error }); }
   return normalizeFeedback(record);
 }

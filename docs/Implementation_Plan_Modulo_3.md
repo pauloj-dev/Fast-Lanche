@@ -31,7 +31,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 37 | Perfil avançado | Concluída | Perfil React protegido, preferências e histórico |
 | 38 | Reservas avançadas | Concluída | Disponibilidade, pagamento simulado e confirmação |
 | 39 | Feedbacks avançados | Concluída | Feedback vinculado a produtos com busca e filtros |
-| 40 | Segurança | Parcial | Validação e sanitização compartilhadas nos fluxos React |
+| 40 | Segurança | Concluída | Validação e sanitização compartilhadas nos fluxos React |
 | 41 | Otimização e refinamento | Parcial | Serviços, estados de UI e convenções React consistentes |
 | 42 | Responsividade | Pendente | Validação visual da aplicação React em todos os breakpoints |
 | 43 | Testes | Parcial | Cobertura dos contratos React e dos fluxos críticos |
@@ -102,6 +102,7 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Perfil: `src/services/profileService.js` (validação, avatar, preferências, histórico e dados do checkout). Grava pela função `saveAccountProfile` do `authService`.
 - Checkout: `src/services/checkoutService.js` (`placeOrder`) concentra validação, pagamento simulado e gravação do pedido.
 - API futura: `src/services/api/apiClient.js`.
+- Segurança (Fase 40): `src/utils/validation.js` (validação e sanitização), `src/services/storage/safeStorage.js` (único acesso ao `localStorage`), `src/utils/errors.js` (`AppError`, `toUserMessage`), `src/hooks/useRequireSession.js` (proteção de página) e `canViewOrder`/`canViewBooking` (acesso a comprovantes).
 
 ---
 
@@ -340,9 +341,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 40 - SEGURANÇA NOS FLUXOS REACT (PARCIAL)
+## FASE 40 - SEGURANÇA NOS FLUXOS REACT (CONCLUÍDA)
 
-### Trabalho restante
+### Escopo
 
 - Criar utilitários React reutilizáveis para sanitização, limites de tamanho e validação de e-mail, telefone, documento, endereço, data e horário.
 - Reutilizar regras puras em vez de duplicar validações dentro das páginas.
@@ -353,12 +354,59 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Aplicar proteção de acesso no Perfil e em qualquer página futura de administração.
 - Adicionar uma política de erro consistente: mensagem amigável na UI e detalhe técnico somente no log de desenvolvimento.
 
+### Problemas encontrados na auditoria (e corrigidos)
+
+- **Comprovante e confirmação de reserva abertos a qualquer pessoa** com o número em mãos, expondo nome, e-mail, telefone e endereço.
+- **Pedidos e cadastro gravavam HTML cru** (só `trim`), e o carrinho aceitava qualquer campo vindo do `localStorage`.
+- **CPF/CNPJ** só tinha checagem de tamanho, e as regras de telefone estavam repetidas em quatro lugares.
+- **`getStorage`/`JSON.parse` duplicados em cada service**, com acesso direto ao `localStorage` no carrinho e no cardápio, e nada funcionava sem `localStorage`.
+- **Mensagens técnicas na interface:** as páginas exibiam `error.message`, e havia `console.warn` em produção.
+- **Sessão sem expiração** e item sem id virando id `0` (`Number(null)`).
+
+### Entregue nesta fase
+
+- **`src/utils/validation.js`:**
+  - `FIELD_LIMITS` com limites únicos por campo.
+  - `sanitizeText` e `sanitizeDeep` (este último descarta `__proto__`/`constructor` e limita profundidade e itens).
+  - Validadores: `isValidEmail`, `isValidPhone` (DDD 11–99 e celular começando com 9), `isValidCPF`/`isValidCNPJ` com dígitos verificadores, `isValidAddress`, `isValidDateString` (data real), `isValidTimeString` e `checkTextLength`.
+  - `businessRules.js` passou a usar esses validadores: checkout, cadastro (senha de 6 a 128 caracteres), login, perfil, reserva e avaliação validam formato e tamanho máximo.
+- **`src/services/storage/safeStorage.js`:**
+  - Único ponto de acesso ao `localStorage` em `src/`.
+  - JSON inválido retorna o valor padrão, sem apagar o dado (as páginas legadas leem as mesmas chaves).
+  - Com o `localStorage` indisponível, os dados ficam em memória durante a sessão.
+  - Cota excedida gera `AppError` com código `quota` e preserva o valor anterior.
+  - `writeMany` desfaz gravações parciais.
+  - Todos os services (auth, pedidos, checkout, perfil, reservas, avaliações, carrinho e status do restaurante) foram migrados.
+- **Revalidação ao carregar:**
+  - Pedidos: texto sanitizado e limitado, preço até R$ 10.000, quantidade até 99, forma e status de pagamento de lista fechada, personalização com `sanitizeDeep`.
+  - Carrinho: só campos conhecidos, imagem só de `assets/products`, 50 linhas no máximo.
+  - Sessão: nome sanitizado.
+  - Perfil, reservas e avaliações já eram normalizados nas fases 37 a 39.
+- **Política de erro** (`src/utils/errors.js`): erros esperados são `AppError` e sua mensagem vai para a interface. Qualquer outro erro vira um texto genérico via `toUserMessage`. O detalhe técnico só aparece em `console.error` com o Vite em modo DEV, e não há mais `console.warn` em produção.
+- **Sessão:** expira 7 dias após o login. Sessão sem `loginAt` válido, ou com data no futuro, é descartada e removida. A sessão continua sem senha nem hash.
+- **Proteção de acesso:**
+  - `useRequireSession(page, authorize)` serve ao Perfil e a futuras páginas de administração (o `authorize` pode exigir um papel). Sem sessão, nada privado é renderizado e a página redireciona para `getLoginUrl(page)`.
+  - Comprovante (`getOrderForViewer`) e confirmação de reserva (`getBookingForViewer`, React e legado) só aparecem para a conta dona ou, em pedido sem conta, para o navegador que o fez. A recusa explica o motivo sem nenhum dado.
+
+### Evidência
+
+- **Testes:** `tests/test-react-security.mjs` tem 9 testes. Eles cobrem os validadores; a sanitização (inclusive a tentativa de poluir o protótipo); entradas malformadas e acima do limite em todos os formulários React; HTML gravado só sanitizado em cadastro, pedido e perfil; JSON corrompido em todas as chaves; dados com tipos errados; `localStorage` indisponível; cota excedida; a política de erro; sessão expirada; o acesso a comprovantes e reservas; e uma varredura estática de `src/` (sem `dangerouslySetInnerHTML`/`innerHTML`/`eval` e sem `localStorage` fora do adapter). `npm test`: 65/65.
+- **Navegador** (`npm run build` + `npm run preview`):
+  - Nome com HTML no cadastro e no endereço do checkout foi gravado sem tags.
+  - CPF inválido foi barrado.
+  - O comprovante abriu para o dono; sem login e com outra conta, mostrou o motivo sem nenhum dado pessoal.
+  - Com a sessão expirada, o Perfil redirecionou para o login e a sessão foi removida.
+  - Com todas as chaves corrompidas, Cardápio, Carrinho, Reservas e Feedbacks abriram vazios.
+  - Console sem erros.
+
 ### Critérios de aceite
 
 - Entrada com HTML/script é armazenada apenas na forma sanitizada e nunca executada.
 - JSON corrompido não derruba a aplicação nem perde o estado padrão válido.
 - Páginas protegidas redirecionam sem revelar dados privados.
 - Testes cobrem entradas malformadas e limites de todos os formulários React.
+
+> Limites conhecidos: o armazenamento continua no navegador e pode ser editado pelo próprio usuário. As regras acima tornam os dados seguros para exibir e consistentes, mas não substituem a validação de um backend, que deve recalcular preços e checar a identidade (Fase 44). Os módulos legados que não usam `src/` (admin, fila de pedidos, modal de perfil) mantêm `js/security.js`.
 
 ---
 

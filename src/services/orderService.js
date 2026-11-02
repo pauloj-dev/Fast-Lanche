@@ -1,4 +1,7 @@
-import { calculateDeliveryFee, calculateSubtotal, calculateTotal } from '../utils/businessRules.js';
+import { FIELD_LIMITS, calculateDeliveryFee, calculateSubtotal, calculateTotal, normalizeEmail, sanitizeDeep, sanitizeText } from '../utils/businessRules.js';
+import { AppError } from '../utils/errors.js';
+import { readSession } from './authService.js';
+import { readArray, readText, writeJSON, writeText } from './storage/safeStorage.js';
 
 export const ORDER_STORAGE_KEY = 'fastlanche_orders';
 export const LAST_ORDER_REFERENCE_KEY = 'fastlanche_last_order';
@@ -9,81 +12,104 @@ const LEGACY_STATUS_SLUGS = Object.freeze({ received: ORDER_STATUS.RECEIVED, 'pa
 const ORDER_STATUS_CLASSES = Object.freeze({ [ORDER_STATUS.RECEIVED]: 'received', [ORDER_STATUS.PAYMENT_CONFIRMED]: 'payment', [ORDER_STATUS.PREPARING]: 'preparing', [ORDER_STATUS.OUT_FOR_DELIVERY]: 'out', [ORDER_STATUS.DELIVERED]: 'delivered' });
 export const PAYMENT_LABELS = Object.freeze({ pix: 'Pix', card: 'Cartao de credito/debito', cash: 'Dinheiro' });
 
-function getStorage() {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
-    if (typeof globalThis !== 'undefined' && globalThis.localStorage) return globalThis.localStorage;
-  } catch { return null; }
-  return null;
+// Texto vindo do formulario ou do localStorage: sanitizado e limitado (numeros de pedidos legados viram texto).
+function safeText(value, fallback = '', maxLength = FIELD_LIMITS.address) {
+  const text = typeof value === 'string' || typeof value === 'number' ? sanitizeText(value, maxLength) : '';
+  return text || fallback;
 }
-function safeText(value, fallback = '') { return typeof value === 'string' ? value.trim() : fallback; }
+const MAX_ITEM_PRICE = 10000;
+const MAX_ITEM_QUANTITY = 99;
+const PAYMENT_METHODS = Object.keys({ pix: 1, card: 1, cash: 1 });
 function safeNumber(value, fallback = 0) { const number = Number(value); return Number.isFinite(number) ? Math.max(number, 0) : fallback; }
 function createOrderNumber() { return `FL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`; }
 
 export function normalizeOrder(input) {
   if (!input || typeof input !== 'object') return null;
   const sourceCustomer = input.customer && typeof input.customer === 'object' ? input.customer : {};
-  const customer = { name: safeText(sourceCustomer.name || input.customerName), email: safeText(sourceCustomer.email || input.email || input.userEmail), phone: safeText(sourceCustomer.phone || input.phone), address: safeText(sourceCustomer.address || input.address), document: safeText(sourceCustomer.document || input.document) };
-  const items = Array.isArray(input.items) ? input.items.map(item => {
+  const customer = {
+    name: safeText(sourceCustomer.name || input.customerName, '', FIELD_LIMITS.name),
+    email: normalizeEmail(safeText(sourceCustomer.email || input.email || input.userEmail, '', FIELD_LIMITS.email)),
+    phone: safeText(sourceCustomer.phone || input.phone, '', FIELD_LIMITS.phone),
+    address: safeText(sourceCustomer.address || input.address, '', FIELD_LIMITS.address),
+    document: safeText(sourceCustomer.document || input.document, '', FIELD_LIMITS.document)
+  };
+  const items = Array.isArray(input.items) ? input.items.slice(0, 100).map(item => {
     if (!item || typeof item !== 'object') return null;
-    const price = safeNumber(item.price);
-    const quantity = Math.max(1, Math.floor(safeNumber(item.quantity, 1)));
-    const customization = item._customization ?? item.customization ?? null;
-    return { id: Number.isFinite(Number(item.id)) ? Number(item.id) : null, name: safeText(item.name, 'Item do pedido'), price, quantity, total: price * quantity, customization, _customization: customization };
+    const price = Math.min(safeNumber(item.price), MAX_ITEM_PRICE);
+    const quantity = Math.min(Math.max(1, Math.floor(safeNumber(item.quantity, 1))), MAX_ITEM_QUANTITY);
+    const rawCustomization = item._customization ?? item.customization ?? null;
+    const customization = rawCustomization === null ? null : sanitizeDeep(rawCustomization);
+    const hasId = item.id !== null && item.id !== undefined && item.id !== '' && Number.isFinite(Number(item.id));
+    return { id: hasId ? Number(item.id) : null, name: safeText(item.name, 'Item do pedido', FIELD_LIMITS.productName), price, quantity, total: price * quantity, customization, _customization: customization };
   }).filter(Boolean) : [];
   // Valores sempre recalculados a partir dos itens: o que vem do formulario/localStorage nao e confiavel.
   const subtotal = calculateSubtotal(items);
   const deliveryFee = calculateDeliveryFee(subtotal);
   const status = normalizeStatus(input.status);
-  const paymentMethod = safeText(input.paymentMethod || input.payment?.method);
-  const paymentStatus = safeText(input.paymentStatus || input.payment?.status, 'pending');
-  const orderNumber = safeText(input.orderNumber || input.id);
+  const rawPaymentMethod = safeText(input.paymentMethod || input.payment?.method, '', 20);
+  const paymentMethod = PAYMENT_METHODS.includes(rawPaymentMethod) ? rawPaymentMethod : '';
+  const paymentStatus = ['approved', 'pending', 'declined'].includes(input.paymentStatus || input.payment?.status) ? (input.paymentStatus || input.payment?.status) : 'pending';
+  const orderNumber = safeText(input.orderNumber || input.id, '', FIELD_LIMITS.reference);
   if (!orderNumber) return null;
   // userProfileId: conta logada que fez o pedido (mesmo campo do js/checkout.js legado), base do historico do Perfil.
-  const userProfileId = safeText(input.userProfileId).toLowerCase();
-  return { id: orderNumber, orderNumber, customer, customerName: customer.name, email: customer.email, userEmail: userProfileId || customer.email, userProfileId, phone: customer.phone, address: customer.address, document: customer.document, items, subtotal, deliveryFee, total: calculateTotal(subtotal, deliveryFee), paymentMethod, paymentStatus, status, createdAt: safeText(input.createdAt, new Date().toISOString()) };
+  const userProfileId = normalizeEmail(safeText(input.userProfileId, '', FIELD_LIMITS.email));
+  return { id: orderNumber, orderNumber, customer, customerName: customer.name, email: customer.email, userEmail: userProfileId || customer.email, userProfileId, phone: customer.phone, address: customer.address, document: customer.document, items, subtotal, deliveryFee, total: calculateTotal(subtotal, deliveryFee), paymentMethod, paymentStatus, status, createdAt: !Number.isNaN(Date.parse(input.createdAt)) ? String(input.createdAt) : new Date().toISOString() };
 }
 
 export function buildOrder(input = {}) {
   const normalized = normalizeOrder({ ...input, orderNumber: input.orderNumber || createOrderNumber() });
-  if (!normalized || !normalized.customer.name || !normalized.customer.email || !normalized.customer.phone || !normalized.customer.address || !normalized.items.length) throw new Error('Pedido invalido: cliente, endereco e itens sao obrigatorios.');
+  if (!normalized || !normalized.customer.name || !normalized.customer.email || !normalized.customer.phone || !normalized.customer.address || !normalized.items.length) throw new AppError('Pedido invalido: cliente, endereco e itens sao obrigatorios.', { code: 'validation' });
   return normalized;
 }
 function normalizeStatus(status) {
   if (Object.values(ORDER_STATUS).includes(status)) return status;
   return LEGACY_STATUS_SLUGS[status] || ORDER_STATUS.RECEIVED;
 }
-function readRawOrders(storage) {
-  try { const parsed = JSON.parse(storage.getItem(ORDER_STORAGE_KEY) || '[]'); return Array.isArray(parsed) ? parsed : []; }
-  catch { return []; }
-}
-function readOrders(storage) { return readRawOrders(storage).map(normalizeOrder).filter(Boolean); }
-export async function getOrders() { const storage = getStorage(); return storage ? readOrders(storage) : []; }
+function readRawOrders() { return readArray(ORDER_STORAGE_KEY); }
+function readOrders() { return readRawOrders().map(normalizeOrder).filter(Boolean); }
+export async function getOrders() { return readOrders(); }
 export async function createOrder(input) {
   const order = buildOrder(input);
-  const storage = getStorage();
-  if (!storage) throw new Error('Nao foi possivel persistir o pedido.');
-  const existing = readOrders(storage).find(saved => saved.orderNumber === order.orderNumber);
+  const existing = readOrders().find(saved => saved.orderNumber === order.orderNumber);
   if (existing) return existing;
   // Os demais pedidos sao regravados como estavam: paginas legadas guardam campos extras
   // (userProfileId, historico de status etc.) que o modelo React nao conhece.
-  try { storage.setItem(ORDER_STORAGE_KEY, JSON.stringify([order, ...readRawOrders(storage)])); }
-  catch { throw new Error('Nao foi possivel persistir o pedido.'); }
+  try { writeJSON(ORDER_STORAGE_KEY, [order, ...readRawOrders()]); }
+  catch (error) { throw new AppError('Nao foi possivel persistir o pedido.', { code: error?.code || 'storage', cause: error }); }
   return order;
 }
 export async function getOrder(orderNumber) {
-  const reference = safeText(orderNumber);
+  const reference = safeText(orderNumber, '', FIELD_LIMITS.reference);
   if (!reference) return null;
-  const storage = getStorage();
-  return storage ? readOrders(storage).find(order => order.orderNumber === reference) || null : null;
+  return readOrders().find(order => order.orderNumber === reference) || null;
 }
+
+// Quem pode ver um pedido (comprovante com nome, telefone e endereco):
+// - pedido de conta: somente a propria conta logada;
+// - pedido sem conta: somente o navegador que o fez (referencia do ultimo pedido guardada no checkout).
+// Retorna o motivo da recusa sem expor nenhum dado do pedido.
+export function canViewOrder(order, session = readSession(), lastReference = getLastOrderReference()) {
+  if (!order) return 'not_found';
+  if (order.userProfileId) {
+    if (!session) return 'login_required';
+    return session.email === order.userProfileId ? 'ok' : 'forbidden';
+  }
+  return order.orderNumber === lastReference ? 'ok' : 'forbidden';
+}
+export async function getOrderForViewer(orderNumber) {
+  const order = await getOrder(orderNumber);
+  const access = canViewOrder(order);
+  return { access, order: access === 'ok' ? order : null };
+}
+
 export function setLastOrderReference(orderNumber) {
-  const reference = safeText(orderNumber); if (!reference) throw new Error('Referencia de pedido invalida.');
-  const storage = getStorage(); if (!storage) throw new Error('Nao foi possivel guardar a referencia do pedido.');
-  try { storage.setItem(LAST_ORDER_REFERENCE_KEY, reference); } catch { throw new Error('Nao foi possivel guardar a referencia do pedido.'); }
+  const reference = safeText(orderNumber, '', FIELD_LIMITS.reference);
+  if (!reference) throw new AppError('Referencia de pedido invalida.', { code: 'validation' });
+  try { writeText(LAST_ORDER_REFERENCE_KEY, reference); }
+  catch (error) { throw new AppError('Nao foi possivel guardar a referencia do pedido.', { code: error?.code || 'storage', cause: error }); }
   return reference;
 }
-export function getLastOrderReference() { const storage = getStorage(); if (!storage) return ''; try { return safeText(storage.getItem(LAST_ORDER_REFERENCE_KEY)); } catch { return ''; } }
-export function getPaymentLabel(method) { return PAYMENT_LABELS[method] || safeText(method, 'Nao informado'); }
+export function getLastOrderReference() { return safeText(readText(LAST_ORDER_REFERENCE_KEY, ''), '', FIELD_LIMITS.reference); }
+export function getPaymentLabel(method) { return PAYMENT_LABELS[method] || 'Nao informado'; }
 export function getOrderStatusLabel(status) { return normalizeStatus(status); }
 export function getOrderStatusClass(status) { return ORDER_STATUS_CLASSES[normalizeStatus(status)]; }

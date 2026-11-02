@@ -88,7 +88,7 @@ test('stale profile of another account and corrupted session are ignored', () =>
   globalThis.localStorage = createStorage();
   localStorage.setItem(SESSION_KEY, '{corrompido');
   assert.equal(readSession(), null);
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ email: 'ana@example.com', name: 'Ana' }));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ email: 'ana@example.com', name: 'Ana', loginAt: new Date().toISOString() }));
   localStorage.setItem(PROFILE_KEY, JSON.stringify({ email: 'outra@example.com', name: 'Outra', address: 'Rua X, 1' }));
   assert.deepEqual(getCurrentProfile(), { name: 'Ana', email: 'ana@example.com' });
 });
