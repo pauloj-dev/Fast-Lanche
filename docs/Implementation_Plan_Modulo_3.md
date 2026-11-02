@@ -33,7 +33,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 39 | Feedbacks avançados | Concluída | Feedback vinculado a produtos com busca e filtros |
 | 40 | Segurança | Concluída | Validação e sanitização compartilhadas nos fluxos React |
 | 41 | Otimização e refinamento | Concluída | Serviços, estados de UI e convenções React consistentes |
-| 42 | Responsividade | Pendente | Validação visual da aplicação React em todos os breakpoints |
+| 42 | Responsividade | Concluída | Validação visual da aplicação React em todos os breakpoints |
 | 43 | Testes | Parcial | Cobertura dos contratos React e dos fluxos críticos |
 | 44 | Preparação para backend | Parcial | Contratos de domínio substituíveis por API |
 | 45 | Produção final | Pendente | Build, documentação e checklist de publicação aprovados |
@@ -468,9 +468,9 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 42 - RESPONSIVIDADE DA APLICAÇÃO REACT (PENDENTE)
+## FASE 42 - RESPONSIVIDADE DA APLICAÇÃO REACT (CONCLUÍDA)
 
-### Trabalho restante
+### Escopo
 
 - Validar os shells React em smartphone pequeno, smartphone grande, tablet e desktop.
 - Revisar especificamente header/menu, grids do cardápio, controles do carrinho, resumo do checkout, formulário de reservas, filtros de feedback e os novos Login/Perfil.
@@ -479,11 +479,57 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 - Testar textos longos, avatar, nomes de produtos, valores e listas sem overflow ou sobreposição.
 - Registrar no plano as larguras e navegadores usados na validação.
 
+### Como foi validado
+
+- **Ferramenta:** `tests/browser/responsive-audit.js`. Cada página é carregada num `iframe` com a largura exata, então as media queries valem para aquela largura independentemente da janela. Uso: `npm run dev`, abrir um shell e rodar no console `(await import('/tests/browser/responsive-audit.js')).runResponsiveAudit()`. Ela verifica:
+  - overflow horizontal da página e elementos passando da borda (fora de contêineres com rolagem intencional);
+  - alvos de toque menores que 24 px (falha, WCAG 2.5.8) e menores que 40 px no celular (aviso);
+  - formulários com mais de uma coluna até 480 px;
+  - texto cortado sem reticências;
+  - elementos espremidos (texto quebrando letra a letra);
+  - conteúdo vazando da própria caixa.
+- **Larguras:** 320, 360, 375, 414 (smartphones), 768, 1024 (tablet) e 1440 px (desktop).
+- **Telas:** os 9 shells React mais a confirmação de reserva (`?reserva=`) e as páginas legadas de reservas e avaliações, que usam a mesma interface. São 12 telas e 84 combinações.
+- **Estados:** usuário logado com avatar de iniciais e carrinho com 101 itens, além de dados extremos:
+  - nome de produto com 80 caracteres e uma palavra de 50 letras sem espaço;
+  - preço de R$ 9.999,99 × 99;
+  - nome e endereço no tamanho máximo;
+  - comentário de 1000 caracteres;
+  - observações longas;
+  - comprovante e reserva com esses dados.
+- **Navegador:** Chromium (painel de navegador do Claude desktop). Os iframes têm barra de rolagem de ~15 px, então a largura útil fica menor que a de um celular real, uma margem de segurança. As capturas usaram a emulação de 375×812 com agente móvel. **Firefox e Safari/iOS não foram testados.**
+
+### Problemas encontrados e corrigidos
+
+- **Palavra longa sem espaço:** nome de produto, endereço ou observação definiam a largura mínima de itens de grid e flex. Cardápio, checkout e comprovante passavam de 320 px de tela para até 559 px de página. Correção: `main { overflow-wrap: anywhere }`, `min-width: 0` em itens que recebem texto livre e `white-space: nowrap` nos valores em dinheiro.
+- **Efeito colateral da correção acima:** botões encolhiam até quebrar letra por letra ("Salvar alterações" com 56×371 px na barra do perfil). Botões, chips, campos e rótulos voltaram a `overflow-wrap: normal`. A auditoria ganhou a checagem de "espremido" para pegar esse tipo de caso.
+- **Reservas (React e legado):** o card ficava com 600 px porque `fieldset` tem `min-width: min-content` por padrão. Correção: `fieldset { min-width: 0 }`.
+- **Filtros dos Feedbacks:** um `select` com opção longa (nome do produto e média) alargava a barra para 458 px. Correção: colunas `minmax(0, 1fr)` e `select` com 100% de largura.
+- **Header logado entre 351 e 400 px:** marca, avatar, carrinho, "Sair" e menu não cabiam. Correção: nesse caso o texto da marca dá lugar ao avatar; o ícone e o `aria-label` continuam (`:has(.profile-avatar-btn)`).
+- **Perfil:** a grade de campos tinha 2 colunas no celular (visualmente uma), e "Total gasto" (R$ 990.011,01) vazava do card de estatística. Correção: grade de 1 coluna, e "Total gasto" ocupa a linha inteira até 480 px.
+- **Card de avaliação:** com nome longo, o selo "Compra verificada" espremia o nome em 54 px de largura. Correção: o selo desce de linha.
+- **Áreas de toque:**
+  - checkboxes de 18–20 px passaram para 24 px, incluindo uma regra por id no checkout que fixava 20 px;
+  - no celular, links do rodapé, marca, botões −/+ do carrinho, chips, estrelas da nota, barras de distribuição e produtos a avaliar passaram para cerca de 44 px;
+  - os alvos com menos de 40 px caíram de 24 para 8 por página, todos acima de 24 px.
+
+### Evidência
+
+- **Auditoria:** as 84 combinações passaram sem overflow, sem alvo abaixo de 24 px, sem formulário de várias colunas no celular, sem texto cortado ou espremido e sem conteúdo vazando da caixa. A ferramenta foi testada importando-a pelo dev server.
+- **Falso positivo aceito:** o card de destaque da Home é inclinado 1,2° de propósito e ultrapassa sua caixa em 6 px no desktop, sem cortar nada nem criar rolagem. A ferramenta ignora filhos com `transform`.
+- **Checagem da própria auditoria:** ao reverter a correção das estatísticas dentro de um iframe, ela acusou o vazamento, e com a correção não acusou.
+- **Menu aberto em 360 px:** links de 48 px e sem overflow.
+- **Testes:** `tests/test-responsive.mjs` (3 testes) protege as regras de CSS que corrigiram cada estouro e o anel de foco, e confere a cobertura de larguras e shells da ferramenta. `npm test`: 76/76.
+
 ### Critérios de aceite
 
 - Nenhuma página React cria overflow horizontal nos breakpoints suportados.
 - Ações principais permanecem visíveis e utilizáveis por toque e teclado.
 - Header, footer, modal e mensagens mantêm hierarquia visual em todas as páginas.
+
+- **Foco de teclado** (verificado com Tab e Shift+Tab reais): o link "Home" do rodapé recebia foco sem nenhum indicador. Treze regras antigas zeravam o `outline` e dependiam só de troca de cor ou fundo, e um contorno só amarelo some nos fundos amarelos. Correção: anel de foco único, preto por dentro e amarelo por fora, para links, botões, selects e elementos com `tabindex`. Agora os links do header e do rodapé mostram o anel ao receber foco pelo teclado.
+
+> Pendência fora do escopo: validar em Firefox e Safari/iOS reais (Fase 45, checklist de publicação).
 
 ---
 

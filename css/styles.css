@@ -3431,9 +3431,8 @@ button:disabled .spinner {
 
 /* --- Checkbox "Usar dados do perfil" no checkout --- */
 #checkout-use-profile {
-  width: 1.25rem;
-  height: 1.25rem;
-  min-height: auto;
+  width: 1.5rem;
+  height: 1.5rem;
   cursor: pointer;
   accent-color: var(--vermelho);
 }
@@ -10143,4 +10142,172 @@ input[type="range"] {
 .booking-slot.is-past,
 .review-product.is-reviewed {
   color: var(--cinza-500);
+}
+
+/* ================================================================ responsividade (Fase 42) */
+/* Textos vindos de usuarios/admin (nomes de produto, enderecos, comentarios) podem ter palavras longas sem espaco:
+   quebram em vez de alargar grids e flex (que, sem isso, crescem ate o tamanho da palavra e estouram a tela). */
+main {
+  overflow-wrap: anywhere;
+}
+
+/* Valores nunca quebram no meio do numero. */
+.price,
+.cart-item-unit-price,
+.cart-item-total-price,
+.checkout-item-price,
+.receipt-item-total,
+.receipt-value-row span:last-child,
+.receipt-total-row strong,
+.account-order-total,
+.booking-summary dd,
+.cart-summary dd,
+.booking-ticket-payment strong {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+/* fieldset tem min-width: min-content por padrao e cresce com o conteudo (faixa de datas, chips). */
+fieldset {
+  min-width: 0;
+}
+
+/* Itens de grid/flex que recebem texto livre podem encolher. */
+.receipt-page-card > *,
+.receipt-item-info,
+.checkout-item-name,
+.cart-item-info,
+.menu-item > * {
+  min-width: 0;
+}
+
+/* Filtros de avaliacoes: select com opcao longa nao define a largura da coluna. */
+.review-toolbar > *,
+.review-toolbar select {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Caixas de selecao com area de toque minima de 24px (WCAG 2.5.8). */
+input[type="checkbox"],
+input[type="radio"]:not(.sr-only),
+.field-checkbox input[type="checkbox"],
+.profile-fields .field-checkbox input[type="checkbox"] {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+}
+
+@media (max-width: 720px) {
+  .account-fields,
+  .profile-modal-content .profile-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Header logado em telas estreitas: o avatar ocupa o lugar do texto da marca (o icone e o aria-label continuam). */
+@media (max-width: 400px) {
+  .header-layout:has(.profile-avatar-btn) .brand {
+    font-size: 0;
+    gap: 0;
+  }
+
+  .header-layout {
+    gap: .4rem;
+  }
+}
+
+/* Areas de toque confortaveis no celular (~44px), sem alterar o desktop. */
+@media (max-width: 720px) {
+  .footer-nav a,
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .cart-control {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .booking-chip,
+  .review-product,
+  .review-distribution button {
+    min-height: 2.75rem;
+  }
+
+  .review-rating-stars label {
+    display: grid;
+    place-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .review-tags button,
+  .review-results .link-button {
+    min-height: 2.25rem;
+    padding-inline: .75rem;
+  }
+}
+
+/* Botoes, chips e campos quebram so entre palavras: com `anywhere` herdado eles podiam encolher ate uma letra
+   por linha dentro de linhas flex (ex.: "Salvar alterações" na barra do perfil). */
+main button,
+main .button,
+main .chip,
+main .booking-chip,
+main .payment-option,
+main select,
+main input,
+main label {
+  overflow-wrap: normal;
+}
+
+/* Excecao: etiquetas e cards que exibem nomes digitados podem quebrar palavras longas. */
+main .review-tags button,
+main .review-product span,
+main .booking-slot,
+main .account-order {
+  overflow-wrap: anywhere;
+}
+
+/* Card de avaliacao: com nome longo, o selo desce de linha em vez de espremer o nome. */
+.review-card header {
+  flex-wrap: wrap;
+}
+
+.review-card header > div {
+  flex: 1 1 10rem;
+}
+
+/* Perfil no celular: "Total gasto" (valor mais longo) ocupa a linha inteira, sem vazar do card. */
+@media (max-width: 480px) {
+  .account-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-stats div:nth-child(2) {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+}
+
+/* Anel de foco unico para teclado (Fase 42). Varias regras antigas (header, rodape, cards, avatar) zeravam o outline e
+   dependiam so de troca de cor/fundo; e um contorno so amarelo some nos fundos amarelos. Este anel duplo (preto por
+   dentro, amarelo por fora) aparece em fundo escuro, claro ou amarelo. !important: precisa vencer os `outline: none`
+   antigos sem reescrever cada regra. Nao afeta clique de mouse (:focus-visible). */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
+input[type="range"]:focus-visible {
+  outline: 3px solid var(--amarelo) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px var(--preto) !important;
 }
