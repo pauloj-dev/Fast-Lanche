@@ -34,7 +34,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 40 | Segurança | Concluída | Validação e sanitização compartilhadas nos fluxos React |
 | 41 | Otimização e refinamento | Concluída | Serviços, estados de UI e convenções React consistentes |
 | 42 | Responsividade | Concluída | Validação visual da aplicação React em todos os breakpoints |
-| 43 | Testes | Parcial | Cobertura dos contratos React e dos fluxos críticos |
+| 43 | Testes | Concluída | Cobertura dos contratos React e dos fluxos críticos |
 | 44 | Preparação para backend | Parcial | Contratos de domínio substituíveis por API |
 | 45 | Produção final | Pendente | Build, documentação e checklist de publicação aprovados |
 
@@ -533,20 +533,31 @@ O projeto usa Vite para transpilar JSX. Cada arquivo em `react/` é um shell HTM
 
 ---
 
-## FASE 43 - TESTES DAS NOVAS IMPLEMENTAÇÕES (PARCIAL)
+## FASE 43 - TESTES DAS NOVAS IMPLEMENTAÇÕES (CONCLUÍDA)
 
-### Já coberto
+Issue: #1.
 
-Os testes em `tests/` cobrem caminhos, regras de negócio, carrinho, Home, Cardápio e segurança legada. `npm test` deve continuar verde.
+### Entregue nesta fase
 
-### Trabalho restante
+- **Playwright** (`playwright.config.js`, `e2e/`). O `webServer` roda `npm run build` e sobe o `vite preview`, então os fluxos sempre testam o build de produção e o build é validado antes deles. Cada teste usa um contexto limpo (sem `localStorage` herdado) e roda em paralelo.
+- **Fixture** (`e2e/support/fixtures.js`): captura `pageerror` e erros de console com a URL e anexa ao relatório. Os títulos dos testes nomeiam a página ou service, para a falha apontar o responsável. Há helpers de cadastro, carrinho, checkout e semeadura de `localStorage`.
+- **Smoke test** (`smoke.spec.js`, 17 testes): todos os shells React e as páginas legadas carregam sem erro e sem tela em branco. As legadas não podem baixar o bundle do React (protege contra a regressão da Fase 41). O perfil sem login redireciona.
+- **Fluxos críticos:**
+  - `checkout.spec.js`: pedido aprovado com comprovante recarregável; pagamento recusado sem pedido e com o carrinho mantido; dados inválidos; carrinho vazio.
+  - `account.spec.js`: cadastro, perfil refletido no header e checkout pré-preenchido; perfil inválido; senha errada; logout.
+  - `booking.spec.js`: reserva aprovada com mesa alocada e confirmação recarregável; horário lotado; pagamento recusado; página legada.
+  - `feedback.spec.js`: leitura sem login; avaliação de pedido entregue e bloqueio da segunda; produto obrigatório; busca e filtros.
+- **Casos de borda** (`edge-cases.spec.js`): `localStorage` corrompido em todas as chaves, sessão expirada e comprovante de outra conta sem dados pessoais.
+- **Auditoria responsiva no E2E** (`responsive.spec.js`): o módulo `tests/browser/responsive-audit.js` é injetado e roda 7 larguras em todas as telas, com usuário logado e carrinho cheio. O teste falha em qualquer problema.
+- **Cobertura:** `npm run test:coverage` com limites mínimos (90% das linhas, 80% dos ramos, 85% das funções). Novo `tests/test-cart-service.mjs` cobre o `cartService` e a recusa do pagamento simulado.
+- **Ajustes encontrados pelos testes:**
+  - O checkout ganhou a opção de demonstração "Simular pagamento recusado", igual à da reserva, porque antes não havia como exercitar a recusa pela interface.
+  - O formulário do checkout passou a usar `noValidate`. A validação nativa do navegador escondia a mensagem acessível do app; agora ele se comporta como os demais formulários.
 
-- Criar testes para `authService`, perfil, pedidos, reservas e feedbacks com armazenamento isolado.
-- Testar os componentes de regra pura: checkout, disponibilidade de mesas, elegibilidade de feedback e normalização de modelos.
-- Cobrir os casos de recarga, JSON inválido, carrinho vazio, pagamento recusado e sessão expirada.
-- Adicionar smoke tests dos shells React após `npm run build` e `npm run preview`.
-- Validar os fluxos críticos: Cardápio -> Carrinho -> Checkout -> Comprovante; Login -> Perfil -> Checkout; Reserva -> Pagamento -> Confirmação; Pedido -> Feedback.
-- Manter testes independentes da ordem de execução e sem depender dos dados reais do navegador do desenvolvedor.
+### Evidência
+
+- `npm test`: 80/80. `npm run test:coverage`: 97,9% das linhas, 85,9% dos ramos, 93,4% das funções.
+- `npm run test:e2e`: 41/41 no Chromium em cerca de 2 minutos, incluindo 77 combinações de tela e largura na auditoria responsiva.
 
 ### Critérios de aceite
 

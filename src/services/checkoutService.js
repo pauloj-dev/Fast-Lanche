@@ -4,10 +4,11 @@ import { AppError, reportError } from '../utils/errors.js';
 
 export const PAYMENT_DELAY_MS = 400;
 
-// Pagamento simulado: sempre aprova. Substituivel por um gateway real mantendo o mesmo retorno.
-export async function simulatePayment({ method }, delay = PAYMENT_DELAY_MS) {
+// Pagamento simulado: aprova, exceto quando `simulateFailure` pede a recusa (opcao de demonstracao da pagina,
+// igual a da reserva). Substituivel por um gateway real mantendo o mesmo retorno.
+export async function simulatePayment({ method, simulateFailure = false }, delay = PAYMENT_DELAY_MS) {
   await new Promise(resolve => setTimeout(resolve, delay));
-  return { status: 'approved', method };
+  return { status: simulateFailure ? 'declined' : 'approved', method };
 }
 
 export function getReceiptUrl(orderNumber) { return `receipt.html?order=${encodeURIComponent(orderNumber)}`; }
@@ -17,7 +18,7 @@ export function getReceiptUrl(orderNumber) { return `receipt.html?order=${encode
 export async function placeOrder({ data, cart, accountEmail = '', processPayment = simulatePayment }) {
   const errors = validateCheckout(data, cart.items.length);
   if (errors.length) throw new AppError(errors[0]);
-  const payment = await processPayment({ method: data.payment, total: cart.total });
+  const payment = await processPayment({ method: data.payment, total: cart.total, simulateFailure: data['simulate-failure'] === 'on' });
   if (payment?.status !== 'approved') throw new AppError('Pagamento recusado. Nenhum pedido foi criado; tente outra forma de pagamento.');
   const order = await createOrder(buildOrder({
     customer: { name: data.name, email: data.email, phone: data.phone, address: data.address, document: data.document || '' },

@@ -203,6 +203,25 @@ Depois acesse `http://localhost:8000` (Home). As demais páginas ficam em `pages
 
 > **Observação:** como o projeto usa módulos ES6 (`import`/`export`), recomendamos servir via HTTP local em vez de abrir o arquivo diretamente (`file://`), para garantir o carregamento correto dos módulos.
 
+## Testes
+
+| Comando | O que roda |
+| --- | --- |
+| `npm test` | Testes unitários e de contrato dos services e regras (Node test runner, `tests/*.mjs`), com armazenamento isolado. |
+| `npm run test:coverage` | Os mesmos testes com relatório de cobertura de `src/`; falha abaixo de 90% das linhas, 80% dos ramos ou 85% das funções. |
+| `npm run test:e2e` | Testes end-to-end com Playwright (`e2e/`). Gera o build (`npm run build`), sobe o `vite preview` e percorre as páginas reais. |
+| `npm run test:all` | Unitários e E2E em sequência. |
+
+Na primeira execução do E2E, instale o navegador: `npx playwright install chromium`.
+
+A suíte E2E cobre:
+- **Smoke test:** todos os shells React e páginas legadas, sem erro de JavaScript nem tela em branco.
+- **Fluxos críticos:** Cardápio → Carrinho → Checkout → Comprovante; Login → Perfil → Checkout; Reserva → Pagamento → Confirmação; Pedido entregue → Avaliação. Cada um tem caminhos de sucesso e de falha.
+- **Casos de borda:** `localStorage` corrompido, carrinho vazio, sessão expirada e comprovante de outra conta.
+- **Auditoria responsiva** (`tests/browser/responsive-audit.js`): 7 larguras, de 320 a 1440 px, em todas as telas.
+
+Cada teste roda num contexto de navegador limpo e não depende dos dados do seu navegador. Erros de página são anexados ao relatório com a URL de origem.
+
 ---
 
 ## Progresso do Desenvolvimento

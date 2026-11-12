@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "vite build --mode legacy && vite build --mode react",
     "preview": "vite preview",
-    "test": "node --test tests/*.mjs"
+    "test": "node --test tests/*.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=src/**/*.js --test-coverage-exclude=src/**/*.jsx --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 tests/*.mjs",
+    "test:e2e": "playwright test",
+    "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@vitejs/plugin-react": "^6.1.1",
     "vite": "^8.3.0"
   }
