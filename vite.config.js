@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => ({
   // servidor estatico (Live Server, abrir via subpasta, etc.).
   base: './',
   build: {
+    // BUILD_OUT_DIR permite um segundo build (ex.: dist-api, modo HTTP do E2E) sem apagar o dist/ principal.
+    outDir: process.env.BUILD_OUT_DIR || 'dist',
     emptyOutDir: mode !== 'react',
     rollupOptions: {
       input: mode === 'react' ? REACT_PAGES : LEGACY_PAGES

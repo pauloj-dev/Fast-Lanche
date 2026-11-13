@@ -2,7 +2,7 @@
 // Usa os mesmos services e regras da pagina React (src/): mesas, disponibilidade, taxa, pagamento simulado e
 // confirmacao sao identicos nas duas URLs. Todo dado do usuario e renderizado com textContent.
 import { showToast } from './ui.js';
-import { readSession } from '../src/services/authService.js';
+import { initializeDataSource, readSession } from '../src/services/authService.js';
 import { getCheckoutDefaults } from '../src/services/profileService.js';
 import {
   BOOKING_STORAGE_KEY, createBooking, getAvailability, getBookingForViewer, getBookingConfirmationUrl, getBookingHighlights,
@@ -235,7 +235,9 @@ async function renderConfirmation(reference) {
   container.replaceChildren(ticket);
 }
 
-function setupBooking() {
+// No modo HTTP a sessao vem do servidor (cookie): recupera antes de montar a pagina.
+async function setupBooking() {
+  await initializeDataSource();
   const form = document.getElementById('booking-form');
   if (!form) return;
 

@@ -35,7 +35,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 41 | Otimização e refinamento | Concluída | Serviços, estados de UI e convenções React consistentes |
 | 42 | Responsividade | Concluída | Validação visual da aplicação React em todos os breakpoints |
 | 43 | Testes | Concluída | Cobertura dos contratos React e dos fluxos críticos |
-| 44 | Preparação para backend | Parcial | Contratos de domínio substituíveis por API |
+| 44 | Preparação para backend | Concluída | Contratos de domínio substituíveis por API |
 | 45 | Produção final | Pendente | Build, documentação e checklist de publicação aprovados |
 
 ---
@@ -568,21 +568,35 @@ Issue: #1.
 
 ---
 
-## FASE 44 - PREPARAÇÃO PARA BACKEND (PARCIAL)
+## FASE 44 - PREPARAÇÃO PARA BACKEND (CONCLUÍDA)
 
-### Já entregue
+Issue: #2. Documentação técnica: [`docs/api/README.md`](api/README.md) e contrato em [`docs/api/openapi.yaml`](api/openapi.yaml).
 
-`src/services/api/apiClient.js` já define um ponto inicial de troca para requisições HTTP, e os domínios principais já possuem services separados.
+### Entregue nesta fase
 
-### Trabalho restante
+- **Repositórios por domínio** (`src/services/repositories/`):
+  - `contracts.js` define as interfaces de `menu`, `auth`, `profile`, `orders`, `bookings` e `feedbacks`, com `assertRepository` como verificação.
+  - A implementação anterior foi movida (com histórico, via `git mv`) para `local/*Local.js`; `http/` traz os adapters equivalentes.
+  - `index.js` escolhe a implementação por `src/services/config.js`: `VITE_API_BASE_URL` presente ativa o modo HTTP; ausente, mantém o local.
+- **Services como fachadas:** `authService`, `profileService`, `orderService`, `checkoutService`, `bookingService`, `feedbackService` e `menuService` mantêm a mesma API pública e delegam ao repositório. Nenhuma página foi alterada.
+- **`apiClient`:**
+  - timeout (`AbortController`) e nova tentativa com backoff exponencial e jitter, só para métodos idempotentes ou com `Idempotency-Key` (rede, timeout, 429 com `Retry-After`, 502/503/504);
+  - tratamento de `204`, cookie de sessão (`credentials: 'include'`) e `X-CSRF-Token` (double submit);
+  - mapeamento de 400/401/402/403/404/409/422/429/5xx e rede para `AppError` com código estável, sem detalhe técnico de 5xx na interface.
+- **Sessão centralizada** (`src/services/api/sessionStore.js`): no modo HTTP, só dados de exibição ficam em memória; a autenticação fica no cookie HttpOnly. O Bearer opcional também fica em memória e é usado só pelo `apiClient`. As páginas recuperam a sessão no boot (`initializeDataSource`, também nos módulos legados de reservas e avaliações).
+- **Modelos padronizados:** a API usa centavos, ISO 8601 UTC, slugs de status e identificadores gerados pelo servidor. Os mappers (`http/mappers.js`) convertem para o modelo da interface com os mesmos normalizadores do modo local. As chaves de armazenamento foram centralizadas em `storage/keys.js`.
+- **Contrato OpenAPI 3** com todos os endpoints, payloads, respostas de sucesso, validação, autenticação, pagamento recusado, conflito, limite e erro; formato único de erro; acesso de convidado por link assinado (`accessToken` só na URL).
+- **Migração dos dados locais** (`src/services/migration/localDataMigration.js`): no primeiro login em modo HTTP, perfil, pedidos, reservas e avaliações da conta vão para `POST /me/import` com chave de idempotência estável. Só os registros importados saem do navegador e a conta fica marcada; dados de outras contas permanecem.
+- **API mock** (`tests/mock-api/`): implementa o contrato reutilizando as regras de `src/`, incluindo preço do catálogo, idempotência, cookie HttpOnly + CSRF, acesso por dono ou link e 409 na mesa. Roda como `fetch` simulado nos testes de unidade e como servidor HTTP no E2E (no lugar do MSW, sem dependência extra).
 
-- Definir interfaces de repositório para menu, autenticação, perfil, pedidos, reservas e feedbacks.
-- Separar cada implementação local (`localStorage`/memória) da implementação HTTP, mantendo as páginas dependentes apenas do contrato.
-- Padronizar modelos e campos obrigatórios, identificadores, timestamps e estados de pedido/reserva/pagamento.
-- Definir endpoints, métodos, payloads e respostas esperados em uma seção de documentação técnica.
-- Centralizar autenticação futura por token sem colocar token ou credencial em componentes.
-- Padronizar estados de carregamento, erro, retry e respostas `204` no `apiClient`.
-- Definir uma estratégia de migração de dados locais e comportamento quando `VITE_API_BASE_URL` estiver ausente.
+### Evidência
+
+- **Testes de unidade:**
+  - `tests/test-http-adapters.mjs` (8): contratos das duas implementações; `apiClient` com 204, retry seguro, timeout, CSRF e mapeamento de erros; conta e perfil no servidor sem dados pessoais no `localStorage`; sessão recuperada pelo cookie; pedido com preço recalculado pelo servidor apesar de carrinho adulterado; recusa sem pedido; comprovante por dono ou link; reservas com 409; avaliações; migração.
+  - `tests/test-api-contract.mjs` (4): conformidade nos dois sentidos entre as 18 operações do OpenAPI e a API mock, formato de erro e visitante sem 401.
+  - `npm test`: 92/92; cobertura de 97,9% das linhas.
+- **E2E, projeto `api-mode`** (14 testes): as mesmas páginas, buildadas com `VITE_API_BASE_URL`, contra a API mock. Cobrem smoke dos shells; cadastro com sessão entre páginas e nada pessoal no navegador; checkout logado e de convidado (link assinado); recusa; reserva; avaliação; migração.
+- `npm run test:e2e`: 55/55, sendo 41 no modo local e 14 no modo HTTP.
 
 ### Critérios de aceite
 

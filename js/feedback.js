@@ -8,7 +8,7 @@ import {
 } from '../src/utils/businessRules.js';
 import { formatAverage, formatDateTime, plural } from '../src/utils/format.js';
 import { ORDER_STORAGE_KEY } from '../src/services/orderService.js';
-import { SESSION_KEY } from '../src/services/authService.js';
+import { SESSION_KEY, initializeDataSource } from '../src/services/authService.js';
 import { subscribeToStorage } from '../src/services/storage/storageEvents.js';
 import { toUserMessage } from '../src/utils/errors.js';
 
@@ -294,7 +294,8 @@ async function load() {
   renderForm();
 }
 
-function setupFeedback() {
+async function setupFeedback() {
+  await initializeDataSource();
   if (!document.getElementById('feedback-list')) return;
   const sort = document.getElementById('feedback-sort');
   sort.replaceChildren(...FEEDBACK_SORTS.map(([value, label]) => {

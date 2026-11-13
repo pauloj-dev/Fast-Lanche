@@ -222,6 +222,16 @@ A suíte E2E cobre:
 
 Cada teste roda num contexto de navegador limpo e não depende dos dados do seu navegador. Erros de página são anexados ao relatório com a URL de origem.
 
+## Modo API (preparação para o backend)
+
+Por padrão os dados ficam no navegador. Com `VITE_API_BASE_URL` definida no build, os mesmos services passam a usar a API REST descrita em [`docs/api/openapi.yaml`](docs/api/openapi.yaml), sem nenhuma mudança nas páginas. Para experimentar com a API mock:
+
+```bash
+node tests/mock-api/server.mjs
+```
+
+Em outro terminal, aponte o build ou o dev server para ela, definindo `VITE_API_BASE_URL=http://localhost:4190/api/v1`. Arquitetura, convenções, erros, sessão e estratégia de migração dos dados locais estão em [`docs/api/README.md`](docs/api/README.md).
+
 ---
 
 ## Progresso do Desenvolvimento

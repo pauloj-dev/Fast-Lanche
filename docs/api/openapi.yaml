@@ -1,0 +1,692 @@
+openapi: 3.0.3
+info:
+  title: Fast Lanche API
+  version: 1.0.0
+  description: |
+    Contrato da API do Fast Lanche (Fase 44 do Módulo 3). Os adapters HTTP do frontend
+    (`src/services/repositories/http`) e a API mock (`tests/mock-api`) implementam este documento;
+    o backend do Módulo 4 deve segui-lo.
+
+    Convenções (detalhes em `docs/api/README.md`):
+    - Valores monetários em **centavos** (inteiros) e campos terminados em `Cents`.
+    - Datas e horas em **ISO 8601 UTC** (`createdAt`), datas de calendário em `AAAA-MM-DD`, horários em `HH:MM`.
+    - Status em slug: pedido `received | payment-confirmed | preparing | out-for-delivery | delivered | cancelled`;
+      pagamento `pending | approved | declined | refunded`; reserva `pending | confirmed | cancelled`.
+    - Sessão em cookie `fl_session` (HttpOnly, Secure em produção, SameSite=Lax). Alterações com sessão exigem
+      `X-CSRF-Token` igual ao cookie `fl_csrf` (double submit).
+    - Criação de pedido, reserva e importação aceitam `Idempotency-Key`: repetir a mesma chave devolve a mesma resposta.
+    - Erros sempre no formato `Error`; mensagens de 4xx são escritas para o usuário final.
+servers:
+  - url: http://localhost:4190/api/v1
+    description: API mock local (tests/mock-api/server.mjs)
+  - url: https://api.fastlanche.com.br/api/v1
+    description: Produção (Módulo 4)
+tags:
+  - name: Cardápio
+  - name: Autenticação
+  - name: Perfil
+  - name: Pedidos
+  - name: Reservas
+  - name: Avaliações
+
+paths:
+  /menu:
+    get:
+      tags: [Cardápio]
+      summary: Cardápio público e status do restaurante
+      operationId: getMenu
+      security: []
+      responses:
+        '200':
+          description: Produtos ativos e status de funcionamento
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [restaurant, items]
+                properties:
+                  restaurant:
+                    type: object
+                    required: [open]
+                    properties:
+                      open: { type: boolean }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Product' }
+        '5XX': { $ref: '#/components/responses/ServerError' }
+
+  /auth/register:
+    post:
+      tags: [Autenticação]
+      summary: Cria a conta e inicia a sessão
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 3, maxLength: 80 }
+                email: { type: string, format: email, maxLength: 120 }
+                password: { type: string, minLength: 6, maxLength: 128 }
+                phone: { type: string, maxLength: 20, description: 'Opcional; DDD + número' }
+      responses:
+        '200': { $ref: '#/components/responses/SessionStarted' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/login:
+    post:
+      tags: [Autenticação]
+      summary: Inicia a sessão
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/SessionStarted' }
+        '401':
+          description: Credenciais inválidas (mesma resposta para e-mail inexistente e senha errada)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/session:
+    get:
+      tags: [Autenticação]
+      summary: Sessão atual (usado no carregamento de cada página)
+      operationId: getSession
+      security: []
+      responses:
+        '200':
+          description: Usuário logado ou `user` nulo para visitante (visitante não é erro)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    nullable: true
+                    allOf: [{ $ref: '#/components/schemas/User' }]
+
+  /auth/logout:
+    post:
+      tags: [Autenticação]
+      summary: Encerra a sessão e remove os cookies
+      operationId: logout
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      responses:
+        '204': { description: Sessão encerrada }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /me:
+    patch:
+      tags: [Perfil]
+      summary: Atualiza nome, telefone, endereço e preferências (o e-mail não muda por aqui)
+      operationId: updateProfile
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200': { $ref: '#/components/responses/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /me/avatar:
+    put:
+      tags: [Perfil]
+      summary: Define o avatar (imagem já reduzida no cliente; o servidor valida tipo e tamanho)
+      operationId: updateAvatar
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dataUrl]
+              properties:
+                dataUrl: { type: string, description: 'data:image/(png|jpeg|webp|gif);base64,... até 300 KB' }
+      responses:
+        '200': { $ref: '#/components/responses/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Perfil]
+      summary: Remove o avatar
+      operationId: removeAvatar
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      responses:
+        '200': { $ref: '#/components/responses/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /me/import:
+    post:
+      tags: [Perfil]
+      summary: Importa dados que estavam só no navegador (primeiro login após a migração para a API)
+      operationId: importLocalData
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalDataImport' }
+      responses:
+        '200':
+          description: Quantidade importada (registros já existentes são ignorados)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported:
+                    type: object
+                    properties:
+                      orders: { type: integer }
+                      bookings: { type: integer }
+                      reviews: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /orders:
+    post:
+      tags: [Pedidos]
+      summary: Cria o pedido; o servidor calcula preços, taxa e total a partir dos ids
+      operationId: createOrder
+      security: [{ sessionCookie: [] }, {}]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreate' }
+      responses:
+        '201':
+          description: Pedido criado e pagamento aprovado. Pedido de convidado traz `accessToken` para o link do comprovante.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order]
+                properties:
+                  order: { $ref: '#/components/schemas/Order' }
+                  accessToken: { type: string, description: 'Somente para convidado; vai na URL do comprovante (?token=)' }
+        '402': { $ref: '#/components/responses/PaymentDeclined' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      tags: [Pedidos]
+      summary: Pedidos da conta logada (`scope=mine`); administradores listam todos (Módulo 4)
+      operationId: listOrders
+      parameters:
+        - in: query
+          name: scope
+          required: true
+          schema: { type: string, enum: [mine, all] }
+      responses:
+        '200':
+          description: Pedidos, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /orders/{orderNumber}:
+    get:
+      tags: [Pedidos]
+      summary: Comprovante (dono logado ou convidado com o link assinado)
+      operationId: getOrder
+      security: [{ sessionCookie: [] }, {}]
+      parameters:
+        - { in: path, name: orderNumber, required: true, schema: { type: string, example: FL-MVYI69F5-VED0 } }
+        - { in: query, name: token, required: false, schema: { type: string }, description: 'Link assinado do convidado' }
+      responses:
+        '200':
+          description: Pedido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookings/availability:
+    get:
+      tags: [Reservas]
+      summary: Situação de cada horário do dia para o tamanho do grupo
+      operationId: getAvailability
+      security: []
+      parameters:
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+        - { in: query, name: guests, required: true, schema: { type: integer, minimum: 1, maximum: 12 } }
+      responses:
+        '200':
+          description: Horários de 11:00 a 22:00, a cada 30 minutos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items: { $ref: '#/components/schemas/Slot' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /bookings:
+    post:
+      tags: [Reservas]
+      summary: Reserva a menor mesa livre e cobra a taxa (alocação atômica no servidor)
+      operationId: createBooking
+      security: [{ sessionCookie: [] }, {}]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfToken' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingCreate' }
+      responses:
+        '201':
+          description: Reserva confirmada. Convidado recebe `accessToken` para o link da confirmação.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [booking]
+                properties:
+                  booking: { $ref: '#/components/schemas/Booking' }
+                  accessToken: { type: string }
+        '402': { $ref: '#/components/responses/PaymentDeclined' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /bookings/{bookingNumber}:
+    get:
+      tags: [Reservas]
+      summary: Confirmação da reserva (dono logado ou convidado com o link assinado)
+      operationId: getBooking
+      security: [{ sessionCookie: [] }, {}]
+      parameters:
+        - { in: path, name: bookingNumber, required: true, schema: { type: string, example: RS-20261105-K3F9 } }
+        - { in: query, name: token, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Reserva
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /reviews:
+    get:
+      tags: [Avaliações]
+      summary: Avaliações públicas (sem e-mail dos autores)
+      operationId: listReviews
+      security: []
+      responses:
+        '200':
+          description: Avaliações, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Review' }
+    post:
+      tags: [Avaliações]
+      summary: Publica avaliação de itens de pedidos entregues da conta (nome vem da conta)
+      operationId: createReview
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, comment, productKeys]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, minLength: 10, maxLength: 1000 }
+                productKeys:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items: { type: string, example: 'FL-MVYI69F5-VED0|p1' }
+      responses:
+        '201':
+          description: Avaliação publicada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review: { $ref: '#/components/schemas/Review' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /reviews/eligible:
+    get:
+      tags: [Avaliações]
+      summary: Itens de pedidos entregues da conta e se já foram avaliados
+      operationId: listEligibleProducts
+      responses:
+        '200':
+          description: Itens elegíveis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/EligibleProduct' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: fl_session
+  parameters:
+    CsrfToken:
+      in: header
+      name: X-CSRF-Token
+      required: false
+      description: Obrigatório em alterações feitas com sessão; igual ao cookie `fl_csrf`.
+      schema: { type: string }
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      description: Chave única por operação; repetir devolve a mesma resposta sem duplicar.
+      schema: { type: string, maxLength: 128 }
+  responses:
+    SessionStarted:
+      description: Sessão iniciada; define os cookies `fl_session` (HttpOnly) e `fl_csrf`
+      headers:
+        Set-Cookie: { schema: { type: string } }
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user]
+            properties:
+              user: { $ref: '#/components/schemas/User' }
+    UserResponse:
+      description: Perfil atualizado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              user: { $ref: '#/components/schemas/User' }
+    ValidationError:
+      description: Dados inválidos (`details` aponta os campos)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Unauthenticated:
+      description: Sem sessão ou sessão expirada
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Sem permissão (recurso de outra conta, link inválido ou CSRF ausente)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Recurso inexistente
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Conflict:
+      description: Conflito de estado (e-mail já cadastrado, horário lotado, item já avaliado)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    PaymentDeclined:
+      description: Pagamento recusado; nada foi criado
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    RateLimited:
+      description: Muitas tentativas
+      headers:
+        Retry-After: { schema: { type: integer }, description: Segundos até tentar de novo }
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    ServerError:
+      description: Erro interno (mensagem genérica, sem detalhe técnico)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: validation }
+            message: { type: string, example: Informe um telefone válido com DDD. }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+    Product:
+      type: object
+      required: [id, name, priceCents, category, active]
+      properties:
+        id: { type: integer }
+        name: { type: string, maxLength: 80 }
+        description: { type: string, maxLength: 300 }
+        priceCents: { type: integer, minimum: 0 }
+        category: { type: string }
+        maxQuantity: { type: integer, minimum: 1, maximum: 99 }
+        active: { type: boolean }
+        customization:
+          nullable: true
+          type: object
+          description: 'type: half_half | remove_ingredients | observations | add_extras'
+    Preferences:
+      type: object
+      properties:
+        paymentMethod: { type: string, enum: ['', pix, card, cash] }
+        notifications: { type: boolean }
+    User:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+        avatarUrl: { type: string }
+        preferences: { $ref: '#/components/schemas/Preferences' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        sessionStartedAt: { type: string, format: date-time }
+    ProfileUpdate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 80 }
+        phone: { type: string, maxLength: 20 }
+        address: { type: string, maxLength: 200 }
+        preferences: { $ref: '#/components/schemas/Preferences' }
+    Customer:
+      type: object
+      required: [name, email, phone, address]
+      properties:
+        name: { type: string, maxLength: 80 }
+        email: { type: string, format: email }
+        phone: { type: string, maxLength: 20 }
+        address: { type: string, minLength: 8, maxLength: 200 }
+        document: { type: string, description: 'CPF ou CNPJ válido (opcional)' }
+    OrderCreate:
+      type: object
+      required: [customer, items, paymentMethod]
+      properties:
+        customer: { $ref: '#/components/schemas/Customer' }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId: { type: integer }
+              quantity: { type: integer, minimum: 1, maximum: 99 }
+              customization: { type: object, nullable: true }
+        paymentMethod: { type: string, enum: [pix, card, cash] }
+        simulatePaymentFailure: { type: boolean, description: 'Somente em sandbox/demonstração' }
+    OrderItem:
+      type: object
+      properties:
+        productId: { type: integer }
+        name: { type: string }
+        unitPriceCents: { type: integer }
+        quantity: { type: integer }
+        customization: { type: object, nullable: true }
+    Payment:
+      type: object
+      properties:
+        method: { type: string, enum: [pix, card, cash] }
+        status: { type: string, enum: [pending, approved, declined, refunded] }
+    Order:
+      type: object
+      required: [orderNumber, status, createdAt, items, totalCents]
+      properties:
+        orderNumber: { type: string }
+        status: { type: string, enum: [received, payment-confirmed, preparing, out-for-delivery, delivered, cancelled] }
+        createdAt: { type: string, format: date-time }
+        accountEmail: { type: string, description: 'Vazio para pedido de convidado' }
+        customer: { $ref: '#/components/schemas/Customer' }
+        items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
+        subtotalCents: { type: integer }
+        deliveryFeeCents: { type: integer }
+        totalCents: { type: integer }
+        payment: { $ref: '#/components/schemas/Payment' }
+    Slot:
+      type: object
+      properties:
+        time: { type: string, example: '20:00' }
+        status: { type: string, enum: [available, few, full, past] }
+        freeTables: { type: integer }
+    BookingCreate:
+      type: object
+      required: [date, time, guests, name, phone, paymentMethod]
+      properties:
+        date: { type: string, format: date }
+        time: { type: string, example: '20:00' }
+        guests: { type: integer, minimum: 1, maximum: 12 }
+        name: { type: string, maxLength: 80 }
+        phone: { type: string, maxLength: 20 }
+        occasion: { type: string, enum: ['', aniversario, romantico, negocios, familia, amigos] }
+        notes: { type: string, maxLength: 200 }
+        paymentMethod: { type: string, enum: [pix, card] }
+        simulatePaymentFailure: { type: boolean, description: 'Somente em sandbox/demonstração' }
+    Booking:
+      type: object
+      properties:
+        bookingNumber: { type: string }
+        date: { type: string, format: date }
+        time: { type: string }
+        guests: { type: integer }
+        tableId: { type: string, example: M16 }
+        tableSeats: { type: integer }
+        name: { type: string }
+        phone: { type: string }
+        occasion: { type: string }
+        notes: { type: string }
+        accountEmail: { type: string }
+        feeCents: { type: integer }
+        payment: { $ref: '#/components/schemas/Payment' }
+        status: { type: string, enum: [pending, confirmed, cancelled] }
+        createdAt: { type: string, format: date-time }
+    Review:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string }
+        createdAt: { type: string, format: date-time }
+        verified: { type: boolean }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              orderNumber: { type: string }
+              productId: { type: integer, nullable: true }
+              name: { type: string }
+    EligibleProduct:
+      type: object
+      properties:
+        key: { type: string, example: 'FL-MVYI69F5-VED0|p1' }
+        orderNumber: { type: string }
+        productId: { type: integer, nullable: true }
+        name: { type: string }
+        orderedAt: { type: string, format: date-time }
+        reviewed: { type: boolean }
+    LocalDataImport:
+      type: object
+      required: [version, orders, bookings, reviews]
+      properties:
+        version: { type: integer, example: 1 }
+        profile:
+          nullable: true
+          type: object
+          properties:
+            name: { type: string }
+            phone: { type: string }
+            address: { type: string }
+            preferences: { $ref: '#/components/schemas/Preferences' }
+        orders: { type: array, items: { $ref: '#/components/schemas/Order' } }
+        bookings: { type: array, items: { $ref: '#/components/schemas/Booking' } }
+        reviews:
+          type: array
+          items:
+            type: object
+            properties:
+              rating: { type: integer }
+              comment: { type: string }
+              createdAt: { type: string, format: date-time }
+              items: { type: array, items: { type: object } }
+security:
+  - sessionCookie: []
