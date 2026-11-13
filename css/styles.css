@@ -1,12 +1,36 @@
 /* Fontes carregadas no <head> de cada pagina (preconnect + stylesheet), nao por @import: evita a cadeia
    HTML -> CSS -> CSS das fontes -> arquivos e reduz o deslocamento de layout quando a fonte chega. */
-/* Fallback com as metricas da Inter (size-adjust/ascent/descent): a troca Arial -> Inter quase nao desloca o texto. */
+/* Fallbacks com as metricas das fontes web (medidas no navegador contra Arial): enquanto Inter e Bricolage Grotesque
+   carregam, o texto ja ocupa praticamente o mesmo espaco, entao a troca nao desloca o layout (CLS). Liberation Sans
+   (Linux) e Helvetica (macOS) tem as metricas da Arial; sem nenhuma delas o navegador segue para a proxima fonte.
+   Inter: 5,6% mais larga que Arial. Bricolage 800: 7,7% mais estreita que Arial Bold, ascendente e descendente maiores. */
 @font-face {
   font-family: "Inter Fallback";
-  src: local("Arial");
-  size-adjust: 107.06%;
-  ascent-override: 90.49%;
-  descent-override: 22.56%;
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans"), local("Helvetica Neue"), local("Helvetica");
+  font-weight: 400 600;
+  size-adjust: 105.6%;
+  ascent-override: 91.9%;
+  descent-override: 22.7%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold"), local("Helvetica Neue Bold"), local("Helvetica Bold");
+  font-weight: 700 900;
+  size-adjust: 105.6%;
+  ascent-override: 91.9%;
+  descent-override: 22.7%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Bricolage Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold"), local("Helvetica Neue Bold"), local("Helvetica Bold");
+  font-weight: 600 800;
+  size-adjust: 92.3%;
+  ascent-override: 100.7%;
+  descent-override: 29.3%;
   line-gap-override: 0%;
 }
 
@@ -5499,7 +5523,7 @@ a.profile-order-card:focus-visible {
   --shadow-sm: 0 2px 10px rgba(74, 44, 23, .06);
   --shadow: 0 14px 34px rgba(74, 44, 23, .12);
   --shadow-lg: 0 26px 60px rgba(74, 44, 23, .18);
-  --font-display: "Bricolage Grotesque", Inter, "Inter Fallback", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Bricolage Fallback", Inter, "Inter Fallback", system-ui, sans-serif;
   --font-body: Inter, "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --ease-out: cubic-bezier(.2, .8, .2, 1);
   --header-height: 68px;
@@ -6004,7 +6028,9 @@ input[type="range"] {
 }
 
 .hero h1 {
-  max-width: 12ch;
+  /* em (e nao ch): ch e a largura do "0" da fonte atual e muda quando a fonte web substitui o fallback,
+     reflowando o titulo (CLS). 7.3em = os mesmos 12ch da Bricolage Grotesque. */
+  max-width: 7.3em;
   font-size: clamp(2.6rem, 1.5rem + 4.6vw, 5rem);
   line-height: .98;
 }
@@ -7281,7 +7307,7 @@ input[type="range"] {
 }
 
 .login-aside h2 {
-  max-width: 14ch;
+  max-width: 8.5em; /* ~14ch da fonte de titulo, sem depender da fonte carregada */
 }
 
 .login-aside p {

@@ -632,7 +632,8 @@ Issue: #3. Guia de publicação: [`docs/release/README.md`](release/README.md). 
   - contraste do rodapé;
   - nomes acessíveis que não continham o texto visível (WCAG 2.5.3): carrinho do header, botão Entrar, avatar e filtros por nota, agora com texto `sr-only` em vez de `aria-label`.
 - **Desempenho:** `e2e/quality/performance.spec.js` mede LCP, CLS e JS gzip por página com rede 4G e CPU 4× mais lenta. Correções:
-  - fontes no `<head>` com `preconnect` (antes `@import` no CSS) e fallback com métricas ajustadas;
+  - fontes no `<head>` com `preconnect` (antes `@import` no CSS) e fallbacks com métricas medidas (Inter e Bricolage, faces locais de Windows, macOS e Linux);
+  - largura do título do hero em `em` em vez de `ch`, que mudava com a troca de fonte e reflowava o título;
   - esqueleto do destaque da Home nas duas versões;
   - altura reservada para o cardápio e para o header das páginas clássicas;
   - destaques das reservas pré-renderizados;
