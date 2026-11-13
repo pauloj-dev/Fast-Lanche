@@ -3,6 +3,10 @@ import { test, expect, addFirstProductToCart, signUp } from './support/fixtures.
 
 // Auditoria responsiva (Fase 42) executada no E2E: o mesmo modulo usado no console do dev server
 // (tests/browser/responsive-audit.js) e injetado na pagina e roda todas as larguras em todas as telas.
+// A auditoria e injetada como script inline, que a CSP de producao (aplicada pelo preview) bloqueia corretamente.
+// Este teste mede layout, nao a CSP (coberta pelos demais), entao so ele ignora a politica.
+test.use({ bypassCSP: true });
+
 const AUDIT_SOURCE = readFileSync(new URL('../tests/browser/responsive-audit.js', import.meta.url), 'utf-8');
 
 test('nenhuma tela tem overflow, alvo pequeno ou texto espremido em 320–1440px', async ({ page }) => {

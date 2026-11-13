@@ -2,7 +2,7 @@
 // Fase 25 - Dropdown de perfil, meus pedidos, painel admin, status de solicitação
 
 import { showToast, closeModal } from './ui.js';
-import { getAppState } from './app-state.js';
+import { dispatchAppStateUpdate, getAppState, refreshAppState, setupAppState } from './app-state.js';
 
 // ============================================
 // CONSTANTES
@@ -354,10 +354,8 @@ function handleLogout() {
         }
 
         // Atualizar estado global
-        import('./app-state.js').then(({ refreshAppState, dispatchAppStateUpdate }) => {
-            refreshAppState();
-            dispatchAppStateUpdate();
-        });
+        refreshAppState();
+        dispatchAppStateUpdate();
 
         modalOverlay.classList.remove('active');
         modalOverlay.classList.add('closing');
@@ -607,9 +605,7 @@ function addDataRow(container, label, value) {
 
 function setupUserNavigation() {
     // Importar app-state para garantir sincronização
-    import('./app-state.js').then(({ setupAppState, refreshAppState, dispatchAppStateUpdate }) => {
-        setupAppState();
-    });
+    setupAppState();
 
     // Ouvir atualizações do estado global para reintegrar o header
     document.addEventListener('appstate:update', () => {

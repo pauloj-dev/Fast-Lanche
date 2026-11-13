@@ -37,7 +37,7 @@ test.describe('Conta (LoginPage / ProfilePage / authService)', () => {
   test('senha errada nao autentica e logout encerra a sessao', async ({ page }) => {
     const email = await signUp(page);
     await page.getByRole('button', { name: /sair da conta/i }).click();
-    await expect(page.getByRole('link', { name: 'Fazer login' })).toBeVisible();
+    await expect(page.locator('.login-header-btn').getByText('Entrar', { exact: true })).toBeVisible();
 
     await page.goto('/react/login.html');
     await page.locator('#auth-email').fill(email);

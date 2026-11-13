@@ -120,8 +120,8 @@ export function FeedbackPage() {
         <span>{plural(summary.count, 'avaliação', 'avaliações')}</span>
       </div>
       <ul className="review-distribution" aria-label="Distribuição das notas">{summary.distribution.map(({ stars, count }) => <li key={stars}>
-        <button type="button" className={filters.rating === stars ? 'is-active' : undefined} onClick={() => setFilter({ rating: filters.rating === stars ? 0 : stars })} aria-pressed={filters.rating === stars} aria-label={`Filtrar ${stars} estrelas: ${plural(count, 'avaliação', 'avaliações')}`}>
-          <span>{stars} ★</span><span className="review-bar"><span style={{ width: `${summary.count ? (count / summary.count) * 100 : 0}%` }}/></span><span>{count}</span>
+        <button type="button" className={filters.rating === stars ? 'is-active' : undefined} onClick={() => setFilter({ rating: filters.rating === stars ? 0 : stars })} aria-pressed={filters.rating === stars}>
+          <span className="sr-only">Filtrar </span><span>{stars} <span aria-hidden="true">★</span></span><span className="sr-only"> estrelas: </span><span className="review-bar" aria-hidden="true"><span style={{ width: `${summary.count ? (count / summary.count) * 100 : 0}%` }}/></span><span>{count}</span><span className="sr-only"> {count === 1 ? 'avaliação' : 'avaliações'}</span>
         </button>
       </li>)}</ul>
       <div className="review-top-products">

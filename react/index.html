@@ -1,35 +1,39 @@
 <!doctype html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description"
-    content="Fast Lanche - versao React (Home). Precisa do Vite: npm run dev." />
+  <title>Fast Lanche | Lanches, pizzas e reservas</title>
+  <meta name="description" content="Peça hambúrgueres, pizzas, combos e bebidas para entrega e reserve sua mesa no Fast Lanche." />
+  <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#161616" />
-  <meta name="robots" content="noindex, nofollow" />
-  <title>Fast Lanche - Home (React)</title>
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&amp;family=Inter:wght@400..800&amp;display=swap" />
   <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" />
+  <link rel="apple-touch-icon" href="../assets/icons/favicon.svg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:site_name" content="Fast Lanche" />
+  <meta property="og:title" content="Fast Lanche | Lanches, pizzas e reservas" />
+  <meta property="og:description" content="Peça hambúrgueres, pizzas, combos e bebidas para entrega e reserve sua mesa no Fast Lanche." />
 </head>
-
 <body>
-  <!-- Shell React: o conteudo e montado por src/main.jsx (App.jsx escolhe a pagina pelo nome do arquivo). -->
+  <noscript>
+    <p style="font-family:Inter,system-ui,Arial,sans-serif;padding:24px;line-height:1.6">O Fast Lanche precisa de JavaScript para funcionar. Ative o JavaScript no navegador ou use a <a href="../index.html">versão clássica do site</a>.</p>
+  </noscript>
   <div id="root"></div>
   <script type="module" src="../src/main.jsx"></script>
-
-  <!-- Fallback: se o shell for aberto sem o Vite (ex.: Live Server), avisa em vez de ficar em branco. -->
   <script>
+    // Fallback: se o shell nao montar (aberto sem build/Vite), explica como executar em vez de mostrar tela em branco.
     setTimeout(function () {
       var root = document.getElementById('root');
       if (root && root.childElementCount === 0) {
-        var page = location.pathname.split('/').pop() || 'index.html';
-        root.innerHTML = '<p style="font-family:Inter,system-ui,Arial,sans-serif;padding:24px;line-height:1.6">' +
-          'Esta pagina e o shell React e precisa do Vite para executar os arquivos .jsx.<br>' +
-          'Rode <strong>npm run dev</strong> e acesse <strong>http://localhost:5173/react/' + page + '</strong> ' +
-          'ou rode <strong>npm run build</strong> e sirva a pasta <strong>dist/</strong>.</p>';
+        root.innerHTML = '<p style="font-family:Inter,system-ui,Arial,sans-serif;padding:24px;line-height:1.6">Esta página precisa do build da aplicação.<br>Em desenvolvimento rode <strong>npm run dev</strong> e acesse <strong>http://localhost:5173/react/index.html</strong>; para publicar rode <strong>npm run build</strong> e sirva a pasta <strong>dist/</strong>. Também é possível usar a <a href="../index.html">versão clássica do site</a>.</p>';
       }
-    }, 1200);
+    }, 2500);
   </script>
 </body>
-
 </html>

@@ -2,7 +2,9 @@
 
 > Plataforma web de delivery nativa para restaurante — cardápio online, carrinho, checkout, agendamento de mesas, acompanhamento de pedidos e painel administrativo.
 
-O **Fast Lanche** é um sistema de delivery construído apenas com **HTML, CSS e JavaScript ES6+**, sem frameworks ou bibliotecas externas. A proposta é oferecer uma experiência completa de compra: visualizar o cardápio, personalizar produtos, finalizar o pagamento (simulado), acompanhar a entrega e reservar mesas — tudo com uma interface simples, responsiva e visualmente profissional.
+O **Fast Lanche** é uma plataforma de delivery com cardápio, carrinho, checkout, reservas de mesa, avaliações, acompanhamento de pedidos e painel administrativo. A interface principal é em **React** (Módulo 3). A versão clássica, em **HTML, CSS e JavaScript ES6+**, continua disponível durante a migração. Os dados ficam no navegador por enquanto; a camada de serviços já está pronta para trocar o armazenamento local por uma API REST (Fase 44).
+
+> **Limitações atuais (frontend sem backend):** dados salvos no `localStorage` do navegador, autenticação **simulada** (contas e senhas locais, sem servidor) e pagamento **simulado** (nenhuma cobrança real). Detalhes em [Limitações](#limitações-atuais). O backend real, a privacidade/LGPD e a publicação definitiva são o Módulo 4.
 
 ---
 
@@ -13,9 +15,10 @@ O **Fast Lanche** é um sistema de delivery construído apenas com **HTML, CSS e
 | **Nome do Produto** | Fast Lanche |
 | **Tipo** | Plataforma web de delivery (restaurante) |
 | **Público-Alvo** | Clientes (mobile e desktop) e proprietários do restaurante |
-| **Stack** | HTML5, CSS3 e JavaScript ES6+ (100% vanilla) |
-| **Execução** | Navegador — não requer build nem dependências |
-| **Dados** | Persistência local via `localStorage` |
+| **Stack** | React 19 + Vite 8 (interface principal); HTML5, CSS3 e JavaScript ES6+ (versão clássica e admin) |
+| **Execução** | `pnpm install` e `pnpm run dev` (desenvolvimento) · `pnpm run build` gera `dist/` estático para qualquer servidor |
+| **Dados** | `localStorage` (padrão) ou API REST com `VITE_API_BASE_URL` ([contrato OpenAPI](docs/api/openapi.yaml)) |
+| **Qualidade** | Testes de unidade com cobertura mínima, E2E em Chromium, Firefox, WebKit e celulares, axe e orçamento de desempenho |
 
 ---
 
@@ -95,13 +98,13 @@ O **Fast Lanche** é um sistema de delivery construído apenas com **HTML, CSS e
 
 | Camada | Tecnologia |
 | --- | --- |
-| **Marca** | HTML5 semântico |
-| **Estilo** | CSS3 — CSS Variables, CSS Grid e Flexbox |
-| **Lógica** | JavaScript ES6+ — módulos (`import`/`export`), arrow functions, `const`/`let` |
-| **Dados** | `localStorage` com tratamento de erros (`try/catch`) |
-| **Imagens** | SVG (logo, ícones e produtos) |
-
-> **Restrições respeitadas:** sem frameworks, sem bibliotecas externas, sem `innerHTML` inseguro (uso de `createElement`/`textContent`/`appendChild`), separação clara de responsabilidades por módulo.
+| **Interface** | React 19 (`src/`) montado por shells HTML em `react/`; páginas clássicas em `index.html` e `pages-html/` |
+| **Build** | Vite 8 (Rolldown), em duas passagens (`--mode legacy` e `--mode react`) para bundles independentes |
+| **Estilo** | CSS3 — CSS Variables, Grid e Flexbox (`css/styles.css`, compartilhado pelas duas versões) |
+| **Domínio** | Services em `src/services/` com repositórios `local` e `http` intercambiáveis |
+| **Dados** | `localStorage` com tratamento de erros, ou API REST (`VITE_API_BASE_URL`) |
+| **Testes** | Node test runner (unidade/contrato), Playwright (E2E multi-navegador), axe-core (acessibilidade) |
+| **Imagens** | SVG (logo, ícones e produtos) e PNG 1200×630 para compartilhamento (Open Graph) |
 
 ---
 
@@ -109,8 +112,12 @@ O **Fast Lanche** é um sistema de delivery construído apenas com **HTML, CSS e
 
 ```text
 Fast-Lanche/
-├── index.html                 # Página Home (raiz do projeto)
-├── pages-html/                # Demais páginas da aplicação
+├── react/                     # Shells HTML das páginas React (index, cardapio, carrinho, checkout,
+│                              #   receipt, login, perfil, reservas, feedbacks)
+├── src/                       # Aplicação React: pages/, components/, context/, hooks/, services/, utils/
+├── index.html                 # Home clássica (raiz do projeto)
+├── 404.html                   # Página de erro autossuficiente (copiada para dist/)
+├── pages-html/                # Demais páginas clássicas
 │   ├── cardapio.html          # Cardápio completo
 │   ├── carrinho.html          # Carrinho de compras
 │   ├── checkout.html          # Checkout e pagamento simulado
@@ -142,10 +149,16 @@ Fast-Lanche/
 │   ├── security.js            # Seguridad: sanitización y validación (Fase 29)
 │   ├── constants.js           # Constantes compartilhadas
 │   └── base-path.js           # Caminhos relativos (raiz x pages-html)
-└── assets/
-    ├── icons/                 # Ícones da interface (SVG)
-    ├── logo/                  # Logotipo (SVG)
-    └── products/              # Imagens dos produtos (SVG)
+├── assets/
+│   ├── icons/                 # Ícones da interface (SVG)
+│   ├── logo/                  # Logotipo (SVG)
+│   ├── og/                    # Imagem de compartilhamento (PNG 1200×630)
+│   └── products/              # Imagens dos produtos (SVG)
+├── scripts/                   # verify-dist, smoke-check e geração da imagem Open Graph
+├── tests/                     # Unidade, contrato e API mock (Node test runner)
+├── e2e/                       # Playwright: fluxos, modo API, acessibilidade e desempenho
+├── docs/                      # PRD, planos, migração React, API e release
+└── .github/workflows/ci.yml   # CI: testes, build, verificação do dist e E2E
 ```
 
 ---
@@ -185,42 +198,65 @@ Todas as operações utilizam `try/catch`; se o `localStorage` estiver indispon�
 
 ## Como Executar
 
-A aplicação principal (HTML, CSS e JS puro) não possui dependências nem build: basta servir a pasta raiz em um servidor estático e abrir a `index.html`.
-
-**Local (recomendado com servidor estático):**
+Requisitos: **Node.js 20.19+** (o CI usa 24) e **pnpm** (via `corepack enable`; a versão está fixada em `packageManager`). Os scripts também rodam com `npm run`.
 
 ```bash
-# Com Python
-python -m http.server 8000
-
-# Ou com Node.js
-npx serve .
+corepack enable
+pnpm install
 ```
 
-Depois acesse `http://localhost:8000` (Home). As demais páginas ficam em `pages-html/`, por exemplo `http://localhost:8000/pages-html/cardapio.html`.
+| Comando | Para quê |
+| --- | --- |
+| `pnpm run dev` | Dev server com recarga em `http://localhost:5173/react/index.html` (versão clássica em `/index.html`). |
+| `pnpm run build` | Gera `dist/`: páginas clássicas, shells React, assets, `404.html`, `robots.txt` e, com `SITE_URL`, `sitemap.xml`. Sempre use este script: ele roda `vite build --mode legacy` e depois `--mode react` (um `vite build` sozinho gera só as páginas clássicas). |
+| `pnpm run preview` | Serve o `dist/` como em produção (`http://localhost:4173/react/index.html`), com 404 de verdade para URLs inexistentes. |
+| `pnpm run verify:dist` | Confere o `dist/`: páginas, metadados, referências locais, isolamento entre bundles, robots/sitemap e orçamento de tamanho. |
+| `pnpm run release:check` | Portão de release completo: cobertura, build, `verify:dist` e E2E (o mesmo que o CI roda). |
 
-> A pasta `react/` contém shells que dependem do Vite (`npm run dev` / `npm run build`) durante a migração para React. O build gera todas as páginas (legadas e shells) em `dist/`, incluindo `dist/pages-html/`. Use sempre `npm run build`: ele roda `vite build --mode legacy` e depois `vite build --mode react`, mantendo páginas legadas e shells React com bundles separados (um `vite build` sozinho gera só as páginas legadas).
+O `dist/` usa caminhos relativos e funciona em qualquer servidor estático, inclusive numa subpasta. Abrir os shells `react/*.html` sem build ou dev server mostra uma mensagem explicando como executar em vez de uma tela em branco. A versão clássica ainda pode ser servida direto da raiz, sem build (`python -m http.server 8000`). Como usa módulos ES6, sirva por HTTP, e não por `file://`.
 
-> **Observação:** como o projeto usa módulos ES6 (`import`/`export`), recomendamos servir via HTTP local em vez de abrir o arquivo diretamente (`file://`), para garantir o carregamento correto dos módulos.
+### Variáveis de ambiente (build)
+
+| Variável | Padrão | Efeito |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | vazia | Vazia: dados no navegador (modo local). Definida (ex.: `https://api.exemplo.com/api/v1`): os services usam a API REST do [contrato OpenAPI](docs/api/openapi.yaml). Fica embutida no bundle, então não deve conter segredo. |
+| `SITE_URL` | vazia | URL pública (ex.: `https://fastlanche.com.br` ou `https://usuario.github.io/Fast-Lanche`). Gera `sitemap.xml` e a linha `Sitemap:` do `robots.txt`; deixa absolutos `canonical`, `og:url` e `og:image`; ajusta os links da `404.html` para a subpasta. |
+| `BUILD_OUT_DIR` | `dist` | Pasta de saída. Usada pelo E2E para um segundo build (`dist-api`) sem apagar o principal. |
+
+### URLs oficiais
+
+As páginas **React** (`/react/*.html`) são as URLs oficiais: indexáveis (Home, Cardápio, Reservas e Avaliações) e com `canonical` próprio. As páginas **clássicas** (`/index.html` e `/pages-html/*.html`) continuam publicadas para quem já tem o link e para o painel administrativo, que ainda é clássico. Elas ficam com `noindex, follow` e `canonical` apontando para a página React equivalente, então os buscadores consolidam tudo nas URLs React.
+
+Redirecionar ou remover as páginas clássicas só depois de migrar o admin (a Home clássica abre o painel). Checkout, carrinho, comprovante, login e perfil ficam fora dos buscadores (`noindex` e `Disallow` no `robots.txt`). Detalhes e checklist de publicação em [`docs/release/README.md`](docs/release/README.md).
 
 ## Testes
 
 | Comando | O que roda |
 | --- | --- |
-| `npm test` | Testes unitários e de contrato dos services e regras (Node test runner, `tests/*.mjs`), com armazenamento isolado. |
-| `npm run test:coverage` | Os mesmos testes com relatório de cobertura de `src/`; falha abaixo de 90% das linhas, 80% dos ramos ou 85% das funções. |
-| `npm run test:e2e` | Testes end-to-end com Playwright (`e2e/`). Gera o build (`npm run build`), sobe o `vite preview` e percorre as páginas reais. |
-| `npm run test:all` | Unitários e E2E em sequência. |
+| `pnpm test` | Testes unitários e de contrato dos services e regras (Node test runner, `tests/*.mjs`), com armazenamento isolado. |
+| `pnpm run test:coverage` | Os mesmos testes com cobertura de `src/`; falha abaixo de 90% das linhas, 80% dos ramos ou 85% das funções. |
+| `pnpm run test:e2e` | Playwright (`e2e/`): gera os builds, sobe os previews e a API mock e roda todos os projetos abaixo. |
+| `pnpm run test:a11y` | Só a auditoria de acessibilidade (axe-core, WCAG 2.2 A/AA) no Chromium. |
+| `pnpm run test:perf` | Só o orçamento de desempenho (LCP, CLS e JS por página), sem rodar os outros projetos. |
+| `pnpm run test:all` | Unitários e E2E em sequência. |
 
-Na primeira execução do E2E, instale o navegador: `npx playwright install chromium`.
+Na primeira execução do E2E, instale os navegadores: `pnpm exec playwright install chromium firefox webkit`.
 
-A suíte E2E cobre:
-- **Smoke test:** todos os shells React e páginas legadas, sem erro de JavaScript nem tela em branco.
+| Projeto Playwright | Cobertura |
+| --- | --- |
+| `chromium` | Todos os fluxos, auditoria responsiva (320–1440 px), acessibilidade e download do comprovante em PNG. |
+| `firefox` e `webkit` | Os mesmos fluxos e a auditoria responsiva nos motores do Firefox e do Safari. |
+| `mobile-chrome` e `mobile-safari` | Smoke de todas as páginas, compra, reserva e avaliação em Pixel 7 e iPhone 14 emulados. |
+| `api-mode` | As mesmas páginas buildadas com `VITE_API_BASE_URL`, contra a API mock (`tests/mock-api`). |
+| `performance` | Orçamento de desempenho, executado depois dos demais projetos para medir sem disputa de CPU. |
+
+A suíte cobre:
+- **Smoke test:** todos os shells React e páginas clássicas, sem erro de JavaScript nem tela em branco.
 - **Fluxos críticos:** Cardápio → Carrinho → Checkout → Comprovante; Login → Perfil → Checkout; Reserva → Pagamento → Confirmação; Pedido entregue → Avaliação. Cada um tem caminhos de sucesso e de falha.
 - **Casos de borda:** `localStorage` corrompido, carrinho vazio, sessão expirada e comprovante de outra conta.
-- **Auditoria responsiva** (`tests/browser/responsive-audit.js`): 7 larguras, de 320 a 1440 px, em todas as telas.
+- **Qualidade:** nenhuma violação grave de acessibilidade (axe). LCP < 2,5 s, CLS < 0,1 e JS dentro do orçamento com rede 4G e CPU 4× mais lenta.
 
-Cada teste roda num contexto de navegador limpo e não depende dos dados do seu navegador. Erros de página são anexados ao relatório com a URL de origem.
+O WebKit do Playwright aproxima o Safari, mas não substitui um iPhone real; essa verificação está no [checklist de release](docs/release/README.md). Cada teste roda num contexto de navegador limpo. Erros de página são anexados ao relatório com a URL de origem.
 
 ## Modo API (preparação para o backend)
 
@@ -231,6 +267,19 @@ node tests/mock-api/server.mjs
 ```
 
 Em outro terminal, aponte o build ou o dev server para ela, definindo `VITE_API_BASE_URL=http://localhost:4190/api/v1`. Arquitetura, convenções, erros, sessão e estratégia de migração dos dados locais estão em [`docs/api/README.md`](docs/api/README.md).
+
+---
+
+## Limitações Atuais
+
+Este frontend é publicável como demonstração, mas ainda **não** é um sistema de produção com dados reais:
+
+- **Dados no navegador:** pedidos, reservas, avaliações, contas e perfil ficam no `localStorage` de cada navegador. Não sincronizam entre aparelhos e somem ao limpar os dados do site. Outros usuários não veem as avaliações de quem está em outro navegador.
+- **Autenticação simulada:** contas e senhas são verificadas no próprio navegador, sem servidor. Isso serve para navegação e testes, não como proteção real. Não use senhas reais.
+- **Pagamento simulado:** Pix e cartão apenas simulam aprovação ou recusa. Nenhum dado de pagamento é enviado ou cobrado.
+- **Painel administrativo** ainda na versão clássica, protegido só no navegador.
+
+A camada de serviços já fala HTTP quando `VITE_API_BASE_URL` está definida ([`docs/api/README.md`](docs/api/README.md)). Backend, autenticação real, pagamentos, privacidade/LGPD e publicação definitiva estão planejados no Módulo 4.
 
 ---
 
@@ -256,10 +305,11 @@ Estrutura base, interface, camada de dados, cardápio, carrinho, persistência, 
 - **26** — Melhorias de experiência do usuário (UX)
 - **27** — Testes completos
 
-### Implementações Futuras
-- **Fase 28** — Segunda rodada de responsividade (validação em smartphones, tablets e desktop).
-- **Fase 29** — Preparação para produção (revisão visual, otimização de assets, segurança inicial e documentação final).
-- **Escopo futuro (Plataforma evolutiva):**
+### Módulo 3 — Migração para React e preparação para produção (Fases 28 a 45) — Concluído
+Interface em React, perfil, reservas, avaliações, segurança, responsividade, testes E2E (Fase 43), camada de dados pronta para API (Fase 44) e preparação para produção do frontend (Fase 45). Detalhes em [`docs/Implementation_Plan_Modulo_3.md`](docs/Implementation_Plan_Modulo_3.md).
+
+### Módulo 4 — Backend, privacidade e produção (planejado)
+- **Escopo:**
   - Backend completo (API e banco de dados).
   - Sistema de autenticação e controle de permissões.
   - Pagamentos reais.
@@ -274,10 +324,14 @@ Estrutura base, interface, camada de dados, cardápio, carrinho, persistência, 
 - [`docs/PRD.md`](docs/PRD.md) — Documento de Requisitos do Produto.
 - [`docs/Implementation_Plan.md`](docs/Implementation_Plan.md) — Plano de implementação do Módulo 1 (MVP).
 - [`docs/Implementation_Plan_Modulo_2.md`](docs/Implementation_Plan_Modulo_2.md) — Plano de implementação do Módulo 2 (Evolução e Produção Avançada).
+- [`docs/Implementation_Plan_Modulo_3.md`](docs/Implementation_Plan_Modulo_3.md) — Plano do Módulo 3 (React e preparação para produção).
+- [`docs/React_Migration.md`](docs/React_Migration.md) — Arquitetura da interface React e fluxos migrados.
+- [`docs/api/README.md`](docs/api/README.md) — Camada de dados, contrato da API e migração dos dados locais.
+- [`docs/release/README.md`](docs/release/README.md) — Checklist de release, publicação, cabeçalhos de segurança e smoke checks.
 
 ---
 
 ## Autoria
 
-Projeto desenvolvido como estudo de uma plataforma de delivery profissional em **HTML, CSS e JavaScript puro (ES6+)**, com arquitetura modular e foco em boas práticas de separação de responsabilidades, validação e experiência do usuário.
+Projeto desenvolvido como estudo de uma plataforma de delivery profissional. Começou em **HTML, CSS e JavaScript puro (ES6+)** e evoluiu para **React + Vite**, com arquitetura modular, testes automatizados e foco em separação de responsabilidades, validação, acessibilidade e experiência do usuário.
 

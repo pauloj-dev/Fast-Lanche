@@ -1,0 +1,67 @@
+name: CI
+
+# Fase 45: todo push e pull request para a main passa pelo mesmo portao de release usado localmente
+# (npm run release:check): testes de unidade com cobertura minima, build, verificacao do dist e E2E em
+# Chromium, Firefox, WebKit, celulares emulados e modo API.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Testes, build e E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      # Versao do pnpm vem do campo packageManager do package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Testes de unidade com cobertura minima
+        run: pnpm run test:coverage
+
+      - name: Build com SITE_URL (robots, sitemap e URLs absolutas)
+        run: pnpm run build && pnpm run verify:dist
+        env:
+          SITE_URL: https://fastlanche.example
+
+      - name: Build portavel e verificacao do dist
+        run: pnpm run build && pnpm run verify:dist
+
+      - name: Instalar navegadores do Playwright
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: E2E (Chromium, Firefox, WebKit, mobile, a11y, desempenho e modo API)
+        run: pnpm run test:e2e
+
+      - name: Relatorio do Playwright
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore

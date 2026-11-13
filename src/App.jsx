@@ -23,8 +23,8 @@ export function App() {
   const page = location.pathname.split('/').pop() || 'index.html';
   const Page = pages[page] || HomePage;
   useEffect(() => {
-    const titles = { 'index.html': 'Home', 'cardapio.html': 'Cardapio', 'carrinho.html': 'Carrinho', 'checkout.html': 'Checkout', 'receipt.html': 'Comprovante', 'reservas.html': 'Reservas', 'feedbacks.html': 'Feedbacks', 'login.html': 'Login', 'perfil.html': 'Perfil' };
-    document.title = `Fast Lanche - ${titles[page] || 'Home'}`;
+    const titles = { 'index.html': 'Fast Lanche | Lanches, pizzas e reservas', 'cardapio.html': 'Cardápio | Fast Lanche', 'reservas.html': 'Reservas | Fast Lanche', 'feedbacks.html': 'Avaliações | Fast Lanche', 'carrinho.html': 'Carrinho | Fast Lanche', 'checkout.html': 'Checkout | Fast Lanche', 'receipt.html': 'Comprovante | Fast Lanche', 'login.html': 'Entrar | Fast Lanche', 'perfil.html': 'Meu perfil | Fast Lanche' };
+    document.title = titles[page] || titles['index.html'];
   }, [page]);
   return <CartProvider><ModalProvider><Header/><Page/><Footer/><ModalHost/></ModalProvider></CartProvider>;
 }

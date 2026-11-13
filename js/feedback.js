@@ -57,12 +57,17 @@ function renderOverview() {
     const item = el('li');
     const active = state.filters.rating === stars;
     const control = button(active ? 'is-active' : '', '', () => setFilter({ rating: active ? 0 : stars }), active);
-    control.setAttribute('aria-label', `Filtrar ${stars} estrelas: ${plural(count, 'avaliação', 'avaliações')}`);
     const bar = el('span', 'review-bar');
+    bar.setAttribute('aria-hidden', 'true');
     const fill = el('span');
     fill.style.width = `${summary.count ? (count / summary.count) * 100 : 0}%`;
     bar.appendChild(fill);
-    control.append(el('span', '', `${stars} ★`), bar, el('span', '', String(count)));
+    const starIcon = el('span', '', '★');
+    starIcon.setAttribute('aria-hidden', 'true');
+    const starLabel = el('span', '', `${stars} `);
+    starLabel.appendChild(starIcon);
+    // Texto sr-only em vez de aria-label: o nome acessivel contem o texto visivel (WCAG 2.5.3).
+    control.append(el('span', 'sr-only', 'Filtrar '), starLabel, el('span', 'sr-only', ' estrelas: '), bar, el('span', '', String(count)), el('span', 'sr-only', ` ${count === 1 ? 'avaliação' : 'avaliações'}`));
     item.appendChild(control);
     return item;
   }));

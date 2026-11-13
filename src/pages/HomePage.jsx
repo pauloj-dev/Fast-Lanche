@@ -8,6 +8,8 @@ import { FREE_DELIVERY_MINIMUM } from '../utils/businessRules.js';
 
 // Mesmo destaque da home legada (js/home.js: FEATURED_PRODUCT_ID).
 const FEATURED_PRODUCT_ID = 14;
+// Esqueleto com conteudo de tamanho equivalente: reserva o espaco do card enquanto o produto carrega (evita CLS).
+const FEATURED_SKELETON = { category: 'Combos', name: 'Combo da casa', description: 'Lanche artesanal + acompanhamento + bebida gelada.', price: 0 };
 
 export function HomePage() {
   const [featured, setFeatured] = useState(null);
@@ -26,14 +28,14 @@ export function HomePage() {
         <div className="hero-actions"><a className="button button-primary" href="cardapio.html">Ver cardápio</a><a className="button button-secondary" href="reservas.html">Reservar mesa</a></div>
         <ul className="hero-stats" aria-label="Destaques do restaurante"><li><strong>25 min</strong><span>tempo médio de preparo</span></li><li><strong>4,8 ★</strong><span>avaliação dos clientes</span></li><li><strong>Grátis</strong><span>entrega acima de {formatCurrency(FREE_DELIVERY_MINIMUM)}</span></li></ul>
       </div>
-      <div className="hero-feature" aria-label="Pedido em destaque" data-category={featured?.category}>
+      <div className={`hero-feature${featured ? '' : ' is-loading'}`} aria-label="Pedido em destaque" aria-busy={!featured} data-category={featured?.category}>
         <span className="hero-badge">🔥 Destaque da casa</span>
         <div className="hero-feature-visual" aria-hidden="true">{featured && <ProductImage item={featured} className="hero-feature-img" loading="eager"/>}</div>
-        {featured ? <>
-          <p className="section-kicker">{featured.category}</p><h2 className="hero-feature-title">{featured.name}</h2><p className="featured-product-description">{featured.description}</p>
-          <div className="feature-row"><span>A partir de</span><strong>{formatCurrency(featured.price)}</strong></div>
-          <div className="featured-product-actions"><button className="button button-primary featured-add-btn" type="button" onClick={addFeatured}>{added ? '✓ Adicionado' : 'Adicionar ao carrinho'}</button><a className="button button-secondary" href="carrinho.html">Ver carrinho</a></div>
-        </> : <div className="feature-row"><strong>Combo Fast</strong></div>}
+        <div className="hero-feature-content" aria-hidden={!featured}>
+          <p className="section-kicker">{(featured || FEATURED_SKELETON).category}</p><h2 className="hero-feature-title">{(featured || FEATURED_SKELETON).name}</h2><p className="featured-product-description">{(featured || FEATURED_SKELETON).description}</p>
+          <div className="feature-row"><span>A partir de</span><strong>{featured ? formatCurrency(featured.price) : 'R$ 00,00'}</strong></div>
+          <div className="featured-product-actions"><button className="button button-primary featured-add-btn" type="button" onClick={addFeatured} disabled={!featured}>{added ? '✓ Adicionado' : 'Adicionar ao carrinho'}</button><a className="button button-secondary" href="carrinho.html" tabIndex={featured ? undefined : -1}>Ver carrinho</a></div>
+        </div>
       </div>
     </div></section>
     <section id="quick-access" className="page-section quick-access-section" aria-labelledby="quick-access-title"><div className="container"><div className="section-heading"><div><p className="section-kicker">Acesso rápido</p><h2 id="quick-access-title">O que você procura?</h2></div></div><div className="quick-access-grid">

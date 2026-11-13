@@ -147,6 +147,7 @@ export async function setupFeatured() {
         deps = await loadFeaturedDependencies();
     } catch (error) {
         console.warn('Falha ao carregar modulos da Home.', error);
+        heroFeature.style.display = 'none'; // sem destaque, o hero mostra so o texto (nao fica esqueleto eterno)
         return;
     }
 
@@ -154,6 +155,9 @@ export async function setupFeatured() {
     const isAvailable = id => !isOutOfStock(id);
 
     const product = selectFeaturedFeature(menuItems, isAvailable, FEATURED_PRODUCT_ID);
+
+    heroFeature.classList.remove('is-loading');
+    heroFeature.removeAttribute('aria-busy');
 
     if (!product) {
         heroFeature.style.display = 'none';

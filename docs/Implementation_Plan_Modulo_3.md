@@ -36,7 +36,7 @@ A migração inicial para React também entregou a base das páginas de Home, Ca
 | 42 | Responsividade | Concluída | Validação visual da aplicação React em todos os breakpoints |
 | 43 | Testes | Concluída | Cobertura dos contratos React e dos fluxos críticos |
 | 44 | Preparação para backend | Concluída | Contratos de domínio substituíveis por API |
-| 45 | Produção final | Pendente | Build, documentação e checklist de publicação aprovados |
+| 45 | Produção final | Concluída | Build, documentação e checklist de publicação aprovados |
 
 ---
 
@@ -607,25 +607,57 @@ Issue: #2. Documentação técnica: [`docs/api/README.md`](api/README.md) e cont
 
 ---
 
-## FASE 45 - PREPARAÇÃO PARA PRODUÇÃO FINAL (PENDENTE)
+## FASE 45 - PREPARAÇÃO PARA PRODUÇÃO FINAL (CONCLUÍDA)
 
-### Trabalho restante
+Issue: #3. Guia de publicação: [`docs/release/README.md`](release/README.md). Resultados registrados em [`docs/release/2026-11-12-fase-45.md`](release/2026-11-12-fase-45.md).
 
-- Executar `npm test`, `npm run build` e `npm run preview` como parte do checklist de release.
-- Confirmar que `dist/` contém os shells React, as páginas legadas ainda necessárias, CSS, assets e caminhos relativos válidos.
-- Definir quais URLs permanecem legadas e quais passam a ser React; remover duplicações somente após a migração correspondente.
-- Revisar metadados, favicon, títulos, `robots`, links e mensagens de fallback dos shells.
-- Fazer revisão final de segurança, responsividade, acessibilidade e persistência.
-- Atualizar `README.md` e `docs/React_Migration.md` quando o fluxo de Login, Perfil e Comprovante for migrado.
-- Documentar variáveis de ambiente, comando de build, comando de preview e limitações da autenticação/pagamento simulados.
-- Criar uma lista de smoke checks para a publicação e registrar o resultado.
+### Entregue nesta fase
+
+- **Metadados e SEO:**
+  - Shells React com título, descrição, `robots`, Open Graph, `<noscript>` e aviso de fallback.
+  - `canonical`, `og:url`, `og:image` e `twitter:card` injetados pelo plugin `seoHead` depois do processamento de HTML do Vite. No HTML-fonte, o Vite copiava a página do canonical como asset e embutia o `og:image` como data URI.
+  - Imagem de compartilhamento em PNG 1200×630 (`scripts/generate-og-image.mjs`).
+  - `robots.txt` (bloqueia os fluxos privados), `sitemap.xml` e URLs absolutas com `SITE_URL`.
+  - `404.html` autossuficiente. O preview e as hospedagens respondem 404 de verdade (`appType: 'mpa'`), sem o "soft 404" que devolvia a Home com 200.
+- **URLs oficiais:** as páginas React são as oficiais. As clássicas ficam `noindex, follow` com `canonical` para a equivalente React. Elas não são redirecionadas enquanto o painel administrativo não for migrado (decisão e passos registrados no guia de release).
+- **Verificação do build** (`pnpm run verify:dist`):
+  - páginas e metadados, referências locais e isolamento entre os bundles clássico e React;
+  - assets, `robots`/`sitemap` e cabeçalhos de segurança;
+  - orçamento de tamanho.
+  - `pnpm run release:check` executa o portão completo.
+- **Compatibilidade:** projetos Playwright `firefox`, `webkit`, `mobile-chrome` (Pixel 7) e `mobile-safari` (iPhone 14), incluindo a auditoria responsiva.
+  - Corrigido o card de login que vazava no WebKit com e-mail longo: grid com `minmax(0, 1fr)` e quebra de palavra, porque o WebKit ignora `overflow-wrap: anywhere` no min-content.
+  - Ignorado o aviso do Firefox de fonte cancelada por redirecionamento.
+- **Acessibilidade:** `e2e/quality/a11y.spec.js` com axe-core (WCAG 2.2 A/AA) falha em violações graves. Corrigidos:
+  - contraste do rodapé;
+  - nomes acessíveis que não continham o texto visível (WCAG 2.5.3): carrinho do header, botão Entrar, avatar e filtros por nota, agora com texto `sr-only` em vez de `aria-label`.
+- **Desempenho:** `e2e/quality/performance.spec.js` mede LCP, CLS e JS gzip por página com rede 4G e CPU 4× mais lenta. Correções:
+  - fontes no `<head>` com `preconnect` (antes `@import` no CSS) e fallback com métricas ajustadas;
+  - esqueleto do destaque da Home nas duas versões;
+  - altura reservada para o cardápio e para o header das páginas clássicas;
+  - destaques das reservas pré-renderizados;
+  - **html2canvas** (~200 kB) deixou de ser `<script>` bloqueante em todas as páginas clássicas e passou a ser carregado sob demanda, com SRI, só ao baixar o comprovante.
+- **Segurança:**
+  - `dist/_headers` com CSP sem `unsafe-inline` em scripts (hashes calculados no build), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options` e COOP, aplicados também pelo preview (o E2E roda sob a CSP);
+  - Vite atualizado para 8.3.8 e `source-map-js` para 1.2.2: o `pnpm audit` zerou os 7 alertas, todos de dependências de desenvolvimento;
+  - `scripts/smoke-check.mjs` confere uma URL publicada, incluindo cabeçalhos.
+- **CI:** `.github/workflows/ci.yml` roda cobertura, build com e sem `SITE_URL`, `verify:dist` e o E2E em todos os navegadores a cada push ou PR na `main`.
+- **Documentação:**
+  - `README.md` reescrito: stack atual, execução, variáveis de ambiente, URLs oficiais, testes e limitações;
+  - `docs/React_Migration.md` atualizado com a tabela de fluxos migrados, camadas e build;
+  - guia de release com checklist, publicação, cabeçalhos por hospedagem e verificação manual em aparelhos.
 
 ### Critérios de aceite
 
-- Build e testes passam em uma checkout limpa com as dependências instaladas.
-- Os fluxos críticos são navegáveis a partir dos URLs publicados.
-- Não há shell React em branco quando executado sem Vite: o fallback ou o build informa corretamente o modo de execução.
-- As limitações de dados locais, autenticação estática e pagamento simulado estão documentadas.
+- Build e testes passam em checkout limpo com as dependências instaladas (verificado em clone novo; ver registro da release).
+- Os fluxos críticos são navegáveis a partir das URLs publicadas: E2E e smoke check contra o `dist/` servido como em produção.
+- Nenhum shell React fica em branco sem Vite: o fallback e o `<noscript>` informam o modo de execução.
+- As limitações de dados locais, autenticação simulada e pagamento simulado estão documentadas no README e no guia de release.
+
+### Pendências conhecidas (fora do alcance da automação)
+
+- Verificação em iPhone e Android **reais** e Lighthouse na URL publicada: checklist manual do guia de release, a executar na publicação (Módulo 4).
+- `Strict-Transport-Security` depende do servidor HTTPS definitivo.
 
 ---
 

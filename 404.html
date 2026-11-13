@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Página não encontrada | Fast Lanche</title>
+  <meta name="description" content="A página que você procurou não existe no Fast Lanche." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#161616" />
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg" />
+  <!-- Autossuficiente: servida para qualquer URL inexistente, entao nao depende de CSS/JS com caminho relativo. -->
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #161616; background: radial-gradient(circle at 0% 0%, rgba(255, 199, 0, .25), transparent 40%), #FFF8EE; }
+    main { width: min(100%, 460px); text-align: center; }
+    .code { font-size: clamp(4rem, 3rem + 6vw, 6.5rem); font-weight: 800; line-height: 1; color: #CC2936; margin: 0; }
+    h1 { margin: .5rem 0; font-size: 1.6rem; }
+    p { color: #4A4138; line-height: 1.6; }
+    nav { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 1.5rem; }
+    a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .6rem 1.2rem; border-radius: 999px; font-weight: 700; text-decoration: none; }
+    .primary { color: #fff; background: #CC2936; }
+    .secondary { color: #161616; border: 1.5px solid #161616; }
+    a:focus-visible { outline: 3px solid #FFC700; outline-offset: 2px; box-shadow: 0 0 0 2px #161616; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="code" aria-hidden="true">404</p>
+    <h1>Página não encontrada</h1>
+    <p>O endereço pode ter mudado ou não existe mais. Que tal voltar ao início ou ver o cardápio?</p>
+    <nav aria-label="Atalhos">
+      <a class="primary" href="/react/index.html">Ir para o início</a>
+      <a class="secondary" href="/react/cardapio.html">Ver cardápio</a>
+    </nav>
+  </main>
+</body>
+</html>

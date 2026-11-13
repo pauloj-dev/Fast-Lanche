@@ -353,13 +353,7 @@ function downloadReceiptPNG(receipt) {
 
     showToast('Gerando imagem do comprovante...', 'info', 2000);
 
-    setTimeout(() => {
-        if (typeof html2canvas === 'undefined') {
-            showToast('Biblioteca de captura nao disponivel. Tente novamente.', 'error');
-            document.body.removeChild(container);
-            return;
-        }
-
+    loadHtml2Canvas().then(html2canvas => {
         html2canvas(container, {
             scale: 2,
             backgroundColor: '#FFFFFF',
@@ -382,7 +376,37 @@ function downloadReceiptPNG(receipt) {
         }).finally(() => {
             document.body.removeChild(container);
         });
-    }, 400);
+    }).catch(() => {
+        showToast('Biblioteca de captura nao disponivel. Verifique a conexao e tente novamente.', 'error');
+        document.body.removeChild(container);
+    });
+}
+
+// html2canvas (~200 kB) so e usado ao baixar o comprovante em PNG. Antes era um <script> bloqueante em todas as
+// paginas legadas; agora e baixado sob demanda, uma unica vez, com Subresource Integrity (o navegador recusa o arquivo
+// se o conteudo do CDN for alterado).
+const HTML2CANVAS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+const HTML2CANVAS_SRI = 'sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==';
+let html2canvasPromise = null;
+
+export function loadHtml2Canvas() {
+    if (typeof window.html2canvas === 'function') return Promise.resolve(window.html2canvas);
+    if (!html2canvasPromise) {
+        html2canvasPromise = new Promise((resolvePromise, reject) => {
+            const script = document.createElement('script');
+            script.src = HTML2CANVAS_SRC;
+            script.integrity = HTML2CANVAS_SRI;
+            script.crossOrigin = 'anonymous';
+            script.referrerPolicy = 'no-referrer';
+            script.onload = () => typeof window.html2canvas === 'function' ? resolvePromise(window.html2canvas) : reject(new Error('html2canvas indisponivel'));
+            script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+            document.head.appendChild(script);
+        }).catch(error => {
+            html2canvasPromise = null; // permite tentar de novo (ex.: conexao voltou)
+            throw error;
+        });
+    }
+    return html2canvasPromise;
 }
 
 function buildReceiptCaptureHTML(receipt) {

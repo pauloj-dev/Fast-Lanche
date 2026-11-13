@@ -1,7 +1,7 @@
 // page-init.js - Inicialização por página (Fase 31 - Arquitetura Multi-Páginas)
 // Cada página HTML importa este módulo e chama a função de inicialização correspondente
-import { setupLayout } from './layout.js';
-import { setupAppState } from './app-state.js';
+import { isUserLoggedIn, setupLayout, updateProfileAvatar } from './layout.js';
+import { dispatchAppStateUpdate, refreshAppState, setupAppState } from './app-state.js';
 import { setupUX } from './ux.js';
 import { resolvePagePath } from './base-path.js';
 
@@ -484,10 +484,8 @@ function setupLoginForm() {
                 setFeedback(loginFeedback, 'Login realizado com sucesso! Redirecionando...', 'success');
 
                 // Atualizar estado global
-                import('./app-state.js').then(({ refreshAppState, dispatchAppStateUpdate }) => {
-                    refreshAppState();
-                    dispatchAppStateUpdate();
-                });
+                refreshAppState();
+                dispatchAppStateUpdate();
 
                 setTimeout(() => {
                     window.location.href = resolvePagePath('index.html');
@@ -589,10 +587,8 @@ function setupLoginForm() {
                 setFeedback(signupFeedback, 'Cadastro realizado com sucesso! Redirecionando...', 'success');
 
                 // Atualizar estado global
-                import('./app-state.js').then(({ refreshAppState, dispatchAppStateUpdate }) => {
-                    refreshAppState();
-                    dispatchAppStateUpdate();
-                });
+                refreshAppState();
+                dispatchAppStateUpdate();
 
                 setTimeout(() => {
                     window.location.href = resolvePagePath('index.html');
@@ -640,7 +636,6 @@ async function initPerfil() {
     setupCommon();
 
     // Verificar se usuário está logado
-    const { isUserLoggedIn } = await import('./layout.js');
     if (!isUserLoggedIn()) {
         window.location.href = resolvePagePath('login.html');
         return;
@@ -798,9 +793,7 @@ function renderProfilePage(getInitials) {
                 });
 
                 // Atualizar avatar no header
-                import('./layout.js').then(({ updateProfileAvatar }) => {
-                    updateProfileAvatar();
-                });
+                updateProfileAvatar();
             });
         });
     }

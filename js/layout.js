@@ -2,6 +2,7 @@
 // Fase 31 - Arquitetura Multi-Páginas
 import { showToast } from './ui.js';
 import { resolvePagePath } from './base-path.js';
+import { dispatchAppStateUpdate, refreshAppState } from './app-state.js';
 
 // =========================================================================
 // CONSTANTES
@@ -160,19 +161,23 @@ function createHeader() {
     const cartLink = document.createElement('a');
     cartLink.className = 'cart-header-link';
     cartLink.href = resolvePagePath('carrinho.html');
-    cartLink.setAttribute('aria-label', 'Ver carrinho');
     cartLink.setAttribute('title', 'Carrinho');
 
     const cartIcon = document.createElement('span');
     cartIcon.className = 'cart-header-icon';
     cartIcon.textContent = '🛒';
+    cartIcon.setAttribute('aria-hidden', 'true');
 
     const cartBadge = document.createElement('span');
     cartBadge.className = 'cart-header-badge';
     cartBadge.id = 'cart-header-badge';
     cartBadge.textContent = '0';
 
-    cartLink.append(cartIcon, cartBadge);
+    const cartLabel = document.createElement('span');
+    cartLabel.className = 'sr-only';
+    cartLabel.textContent = 'Carrinho, itens: ';
+
+    cartLink.append(cartIcon, cartLabel, cartBadge);
     cartContainer.appendChild(cartLink);
 
     // Botão de login (quando deslogado)
@@ -300,7 +305,6 @@ function updateLoginButton() {
     loginBtn.className = 'nav-link-btn login-header-btn';
     loginBtn.href = resolvePagePath('login.html');
     loginBtn.textContent = 'Entrar';
-    loginBtn.setAttribute('aria-label', 'Fazer login');
     container.appendChild(loginBtn);
 }
 
@@ -570,10 +574,8 @@ function handleLogout() {
         }
 
         // Atualizar estado global
-        import('./app-state.js').then(({ refreshAppState, dispatchAppStateUpdate }) => {
-            refreshAppState();
-            dispatchAppStateUpdate();
-        });
+        refreshAppState();
+        dispatchAppStateUpdate();
 
         modalOverlay.classList.remove('active');
         modalOverlay.classList.add('closing');

@@ -7,7 +7,7 @@ export const test = base.extend({
     const errors = [];
     page.on('pageerror', error => errors.push(`[pageerror] ${page.url()} :: ${error.message}`));
     page.on('console', message => {
-      if (message.type() === 'error') errors.push(`[console] ${page.url()} :: ${message.text()}`);
+      if (message.type() === 'error' && !isNavigationNoise(message.text())) errors.push(`[console] ${page.url()} :: ${message.text()}`);
     });
     await use(errors);
     if (errors.length) await testInfo.attach('erros-de-pagina', { body: errors.join('\n'), contentType: 'text/plain' });
@@ -15,6 +15,12 @@ export const test = base.extend({
 });
 
 export { expect };
+
+// O Firefox registra como erro de console o download de fonte cancelado quando a pagina redireciona antes de ele
+// terminar (NS_BINDING_ABORTED = 2152398850). Nao e falha da aplicacao; qualquer outro erro continua contando.
+function isNavigationNoise(text) {
+  return /downloadable font: download failed .*status=2152398850/.test(text);
+}
 
 // Data local "AAAA-MM-DD" com deslocamento em dias (mesmo fuso do navegador do teste).
 export function localDate(offsetDays = 0) {
