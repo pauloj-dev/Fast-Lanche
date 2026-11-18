@@ -5992,6 +5992,38 @@ input[type="range"] {
   }
 }
 
+/* Logo horizontal da marca: o fundo branco do lockup preserva contraste no header e no rodapé escuros. */
+.brand {
+  flex: 0 1 auto;
+  min-width: 0;
+  width: clamp(2.75rem, 4vw, 3.5rem);
+  line-height: 0;
+}
+
+.brand::before {
+  display: none;
+  content: none;
+}
+
+.brand img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.brand:hover img {
+  transform: translateY(-1px);
+}
+
+.footer-brand-logo {
+  display: block;
+  width: 3.5rem;
+  height: auto;
+  border-radius: 12px;
+}
+
 /* ---------------------------------------------------------------- hero */
 .hero {
   position: relative;

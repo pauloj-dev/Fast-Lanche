@@ -1,7 +1,7 @@
 // layout.js - Header e Footer globais compartilhados entre todas as páginas
 // Fase 31 - Arquitetura Multi-Páginas
 import { showToast } from './ui.js';
-import { resolvePagePath } from './base-path.js';
+import { resolveAssetPath, resolvePagePath } from './base-path.js';
 import { dispatchAppStateUpdate, refreshAppState } from './app-state.js';
 
 // =========================================================================
@@ -106,7 +106,10 @@ function createHeader() {
     brand.className = 'brand';
     brand.href = resolvePagePath('index.html');
     brand.setAttribute('aria-label', 'Fast Lanche - inicio');
-    brand.textContent = 'Fast Lanche';
+    const logo = document.createElement('img');
+    logo.src = resolveAssetPath('assets/logo/fast-lanche-logo.svg');
+    logo.alt = 'Símbolo do hambúrguer Fast Lanche';
+    brand.appendChild(logo);
 
     const navToggle = document.createElement('button');
     navToggle.className = 'nav-toggle';
@@ -204,8 +207,10 @@ function createFooter() {
     const brandInfo = document.createElement('div');
     brandInfo.className = 'footer-brand-info';
 
-    const brand = document.createElement('strong');
-    brand.textContent = 'Fast Lanche';
+    const brand = document.createElement('img');
+    brand.className = 'footer-brand-logo';
+    brand.src = resolveAssetPath('assets/logo/fast-lanche-logo.svg');
+    brand.alt = 'Símbolo do hambúrguer Fast Lanche';
 
     const tagline = document.createElement('small');
     tagline.textContent = 'Delivery fast e reservas.';

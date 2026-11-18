@@ -20,7 +20,7 @@ export function Header() {
   return <header className="site-header">
     <div className="container header-layout">
       <div className="header-row">
-        <a className="brand" href="index.html" aria-label="Fast Lanche - inicio">Fast Lanche</a>
+        <a className="brand" href="index.html" aria-label="Fast Lanche - início"><img src="../assets/logo/fast-lanche-logo.svg" alt="Símbolo do hambúrguer Fast Lanche"/></a>
         <button className={`nav-toggle${open ? ' active' : ''}`} id="nav-toggle" type="button" aria-label={open ? 'Fechar menu' : 'Abrir menu'} aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="nav-toggle-bar"/><span className="nav-toggle-bar"/><span className="nav-toggle-bar"/>
         </button>
@@ -37,7 +37,7 @@ export function Header() {
 
 export function Footer() {
   return <footer className="site-footer"><div className="container footer-layout">
-    <div className="footer-brand-info"><strong>Fast Lanche</strong><small>Delivery fast e reservas.</small></div>
+    <div className="footer-brand-info"><img className="footer-brand-logo" src="../assets/logo/fast-lanche-logo.svg" alt="Símbolo do hambúrguer Fast Lanche"/><small>Delivery fast e reservas.</small></div>
     <nav className="footer-nav" aria-label="Links do rodape">{links.map(([href, label]) => <a key={href} href={href}>{label}</a>)}</nav>
     <div className="footer-hours"><small className="footer-hours-title">Horario de funcionamento</small><span>Seg a Dom: 11:00 - 23:00</span></div>
     <div className="footer-social"><small>Redes sociais</small><div className="footer-social-links"><a href="#" className="footer-social-link" aria-label="Instagram" title="Instagram">📷</a><a href="#" className="footer-social-link" aria-label="Facebook" title="Facebook">📘</a><a href="#" className="footer-social-link" aria-label="WhatsApp" title="WhatsApp">💬</a></div></div>
